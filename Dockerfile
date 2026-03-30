@@ -38,10 +38,10 @@ RUN mkdir -p data/outputs logs
 RUN chmod -R 755 /app
 
 # Expose port
-EXPOSE 8501
+EXPOSE 5000
 
 # Health check
-HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
+HEALTHCHECK CMD curl --fail http://localhost:5000/health || exit 1
 
 # Set metadata
 LABEL maintainer="Hasif50"
@@ -50,4 +50,4 @@ LABEL description="AI-Powered Essay Grading System"
 LABEL version="1.0.0"
 
 # Run the application
-ENTRYPOINT ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true", "--server.fileWatcherType=none"]
+ENTRYPOINT ["python", "app.py"]

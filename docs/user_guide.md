@@ -35,6 +35,16 @@ The application consists of three main areas:
 - **Main Panel**: Essay upload and results display
 - **Analysis Results**: Detailed feedback and scores
 
+### Language Support
+
+The application supports two feedback languages:
+
+- **English** (`en`)
+- **Nederlands** (`nl`)
+
+Select your preferred output language in the sidebar under **Feedback Agent Language**.
+The selected language is used by the feedback agent when returning feedback to the user.
+
 ## Uploading Essays
 
 ### Supported Formats
@@ -126,34 +136,18 @@ Each criterion is rated on a performance scale:
 
 ## Grading Rubrics
 
-### Available Rubrics
+### Available Rubric
 
-#### Standard Rubric
-- General purpose academic writing
-- Balanced focus on all writing aspects
-- Suitable for most essay types
-
-#### Academic Rubric
-- Emphasis on thesis and evidence
-- Critical analysis focus
-- Research paper orientation
-
-#### Creative Writing Rubric
-- Creativity and originality emphasis
-- Narrative structure focus
-- Artistic expression evaluation
-
-#### Argumentative Rubric
-- Claim and reasoning focus
-- Evidence evaluation
-- Counterargument assessment
+#### Learning Story Rubric
+- Context and understanding of what needs to be learned
+- Learning goals and clear formulation
+- Learning approach with concrete actions and resources
+- Substantiation and quality of evidence
 
 ### Selecting a Rubric
 
-1. Open the sidebar configuration
-2. Find "Grading Rubric" dropdown
-3. Select the most appropriate rubric for your essay type
-4. The analysis will use the selected criteria
+The app uses **Learning Story** as the default and only rubric.
+You can view it in the sidebar, and all scoring uses Learning Story criteria.
 
 ## Feedback Interpretation
 

@@ -47,11 +47,11 @@ This guide provides instructions for deploying the Automated Essay Grader in var
 
 5. **Run the Application**
    ```bash
-   streamlit run app.py
+   python app.py
    ```
 
 6. **Access the Application**
-   - Open browser to `http://localhost:8501`
+   - Open browser to `http://localhost:5000`
 
 ## Production Deployment
 
@@ -110,7 +110,7 @@ This guide provides instructions for deploying the Automated Essay Grader in var
    User=www-data
    WorkingDirectory=/opt/Automated-Essay-Grader
    Environment=PATH=/opt/Automated-Essay-Grader/venv/bin
-   ExecStart=/opt/Automated-Essay-Grader/venv/bin/streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+   ExecStart=/opt/Automated-Essay-Grader/venv/bin/python app.py
    Restart=always
 
    [Install]
@@ -138,15 +138,12 @@ This guide provides instructions for deploying the Automated Essay Grader in var
        server_name your-domain.com;
 
        location / {
-           proxy_pass http://localhost:8501;
+            proxy_pass http://localhost:5000;
            proxy_http_version 1.1;
-           proxy_set_header Upgrade $http_upgrade;
-           proxy_set_header Connection 'upgrade';
            proxy_set_header Host $host;
            proxy_set_header X-Real-IP $remote_addr;
            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
            proxy_set_header X-Forwarded-Proto $scheme;
-           proxy_cache_bypass $http_upgrade;
        }
    }
    ```
@@ -160,33 +157,29 @@ This guide provides instructions for deploying the Automated Essay Grader in var
 
 ## Cloud Deployment
 
-### Streamlit Cloud
+### Flask-Compatible PaaS (Render/Railway/Heroku)
 
 1. **Prepare Repository**
    - Ensure all files are committed to GitHub
-   - Verify requirements.txt is complete
-   - Add secrets to Streamlit Cloud
+   - Verify `requirements.txt` is complete
+   - Configure environment variables in your platform dashboard
 
-2. **Deploy Steps**
-   - Go to share.streamlit.io
-   - Connect GitHub repository
-   - Select main branch and app.py
-   - Configure secrets in Advanced settings
+2. **Start Command**
+   - Use: `python app.py`
 
 3. **Environment Variables**
-   Add to Streamlit Cloud secrets:
-   ```toml
-   OPENAI_API_KEY = "your_key_here"
-   AZURE_API_KEY = "your_key_here"
-   AZURE_ENDPOINT = "your_endpoint_here"
-   ```
+   Add these variables in your deployment platform:
+   - `OPENAI_API_KEY`
+   - `AZURE_API_KEY`
+   - `AZURE_ENDPOINT`
+   - `PORT` (provided by platform on most PaaS providers)
 
 ### Heroku Deployment
 
 1. **Prepare Files**
    Create `Procfile`:
    ```
-   web: streamlit run app.py --server.port=$PORT --server.address=0.0.0.0
+   web: python app.py
    ```
 
    Create `runtime.txt`:
@@ -234,11 +227,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-EXPOSE 8501
+EXPOSE 5000
 
-HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
+HEALTHCHECK CMD curl --fail http://localhost:5000/health
 
-ENTRYPOINT ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+ENTRYPOINT ["python", "app.py"]
 ```
 
 ### Docker Compose
@@ -251,7 +244,7 @@ services:
   essay-grader:
     build: .
     ports:
-      - "8501:8501"
+         - "5000:5000"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - AZURE_API_KEY=${AZURE_API_KEY}
@@ -299,7 +292,7 @@ AZURE_API_VERSION=2023-05-15
 # Application Settings
 APP_TITLE="Automated Essay Grader"
 MAX_ESSAY_LENGTH=10000
-DEFAULT_RUBRIC=standard
+DEFAULT_RUBRIC=learning_story
 
 # Security
 SECRET_KEY=your_secret_key_here
@@ -368,7 +361,7 @@ sudo certbot --nginx -d your-domain.com
 
 1. **Application Health**
    ```bash
-   curl http://localhost:8501/_stcore/health
+   curl http://localhost:5000/health
    ```
 
 2. **Service Status**
@@ -439,7 +432,7 @@ sudo certbot --nginx -d your-domain.com
 
 1. **Port Already in Use**
    ```bash
-   sudo lsof -i :8501
+   sudo lsof -i :5000
    sudo kill -9 <PID>
    ```
 

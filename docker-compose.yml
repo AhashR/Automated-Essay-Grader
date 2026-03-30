@@ -9,7 +9,7 @@ services:
     build: .
     container_name: automated-essay-grader
     ports:
-      - "8501:8501"
+      - "5000:5000"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - AZURE_API_KEY=${AZURE_API_KEY}
@@ -24,7 +24,7 @@ services:
       - ./data/rubrics:/app/data/rubrics:ro
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 10s
       retries: 3

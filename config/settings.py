@@ -44,6 +44,10 @@ class Settings:
     MAX_ESSAY_LENGTH = int(os.getenv("MAX_ESSAY_LENGTH", "10000"))
     MIN_ESSAY_LENGTH = 50
     DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "en")
+    SUPPORTED_LANGUAGES = {
+        "en": "English",
+        "nl": "Nederlands",
+    }
 
     # Grading Configuration
     ENABLE_PLAGIARISM_CHECK = (
@@ -51,7 +55,7 @@ class Settings:
     )
     ENABLE_GRAMMAR_CHECK = os.getenv("ENABLE_GRAMMAR_CHECK", "true").lower() == "true"
     ENABLE_STYLE_ANALYSIS = os.getenv("ENABLE_STYLE_ANALYSIS", "true").lower() == "true"
-    DEFAULT_RUBRIC = os.getenv("DEFAULT_RUBRIC", "standard")
+    DEFAULT_RUBRIC = os.getenv("DEFAULT_RUBRIC", "learning_story")
 
     # File Upload Configuration
     MAX_FILE_SIZE = os.getenv("MAX_FILE_SIZE", "10MB")
@@ -102,25 +106,15 @@ class Settings:
 
     # Rubric Types
     AVAILABLE_RUBRICS = {
-        "standard": {
-            "name": "Standard Essay Rubric",
-            "description": "General purpose essay evaluation",
-            "criteria": ["content", "organization", "grammar", "style"],
-        },
-        "academic": {
-            "name": "Academic Writing Rubric",
-            "description": "For academic and research papers",
-            "criteria": ["thesis", "evidence", "analysis", "mechanics"],
-        },
-        "creative_writing": {
-            "name": "Creative Writing Rubric",
-            "description": "For creative and narrative writing",
-            "criteria": ["creativity", "narrative", "language", "mechanics"],
-        },
-        "argumentative": {
-            "name": "Argumentative Essay Rubric",
-            "description": "For persuasive and argumentative essays",
-            "criteria": ["claim", "reasoning", "evidence", "counterargument"],
+        "learning_story": {
+            "name": "Learning Story Rubric",
+            "description": "For learning stories with context, goals, approach, and substantiation",
+            "criteria": [
+                "context",
+                "learning_goals",
+                "learning_approach",
+                "substantiation",
+            ],
         },
     }
 
@@ -215,7 +209,9 @@ class Settings:
     @classmethod
     def get_rubric_config(cls, rubric_type: str) -> Dict[str, Any]:
         """Get configuration for a specific rubric."""
-        return cls.AVAILABLE_RUBRICS.get(rubric_type, cls.AVAILABLE_RUBRICS["standard"])
+        return cls.AVAILABLE_RUBRICS.get(
+            rubric_type, cls.AVAILABLE_RUBRICS["learning_story"]
+        )
 
     @classmethod
     def is_feature_enabled(cls, feature: str) -> bool:

@@ -11,6 +11,7 @@ import re
 import nltk
 import textstat
 from typing import Dict, List, Optional, Any
+from nltk.corpus import stopwords
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from textblob import TextBlob
@@ -44,6 +45,7 @@ class EssayAnalyzer:
         model_name: str = "gpt-4",
         temperature: float = 0.3,
         max_tokens: int = 2000,
+        language: str = "en",
     ):
         """
         Initialize the essay analyzer.
@@ -53,11 +55,15 @@ class EssayAnalyzer:
             model_name: Specific model to use
             temperature: Model temperature for response generation
             max_tokens: Maximum tokens for model responses
+            language: Language code for analysis and generated feedback ('en' or 'nl')
         """
         self.model_provider = model_provider
         self.model_name = model_name
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.language = self._normalize_language(language)
+        self.english_stopwords = set(stopwords.words("english"))
+        self.dutch_stopwords = set(stopwords.words("dutch"))
 
         # Initialize AI model
         self._initialize_model()
@@ -67,12 +73,63 @@ class EssayAnalyzer:
 
         # Load spaCy model for advanced NLP
         try:
-            self.nlp = spacy.load("en_core_web_sm")
+            if self.language == "nl":
+                self.nlp = spacy.load("nl_core_news_sm")
+            else:
+                self.nlp = spacy.load("en_core_web_sm")
         except OSError:
-            print(
-                "Warning: spaCy English model not found. Some features may be limited."
-            )
+            print("Warning: spaCy model not found for selected language. Some features may be limited.")
             self.nlp = None
+
+    def _normalize_language(self, language: str) -> str:
+        """Normalize language inputs to supported codes."""
+        normalized = (language or "en").strip().lower()
+        aliases = {
+            "english": "en",
+            "eng": "en",
+            "nederlands": "nl",
+            "dutch": "nl",
+            "nl_nl": "nl",
+            "en_us": "en",
+            "en_gb": "en",
+        }
+        normalized = aliases.get(normalized, normalized)
+        return normalized if normalized in {"en", "nl"} else "en"
+
+    def _detect_language(self, text: str) -> str:
+        """Detect whether essay text is primarily English or Dutch."""
+        words = [w.lower() for w in nltk.word_tokenize(text) if w.isalpha()]
+        if not words:
+            return "en"
+
+        english_hits = sum(1 for w in words if w in self.english_stopwords)
+        dutch_hits = sum(1 for w in words if w in self.dutch_stopwords)
+
+        # Additional tie-breaker tokens for short essays or sparse stopword overlap.
+        if english_hits == dutch_hits:
+            english_markers = {
+                "the",
+                "and",
+                "because",
+                "therefore",
+                "however",
+                "this",
+                "that",
+            }
+            dutch_markers = {
+                "de",
+                "het",
+                "een",
+                "omdat",
+                "daarom",
+                "echter",
+                "deze",
+                "dit",
+            }
+            english_hits += sum(1 for w in words if w in english_markers)
+            dutch_hits += sum(1 for w in words if w in dutch_markers)
+
+        return "nl" if dutch_hits > english_hits else "en"
 
     def _initialize_model(self):
         """Initialize the AI model based on provider."""
@@ -93,6 +150,16 @@ class EssayAnalyzer:
                     api_key=os.getenv("AZURE_API_KEY"),
                     api_version=os.getenv("AZURE_API_VERSION", "2023-05-15"),
                 )
+            elif self.model_provider == "mock":
+                # Lightweight mock for tests that should not call external LLMs.
+                class _MockLLM:
+                    def __call__(self, messages):
+                        class _MockResponse:
+                            content = "Mock analysis response"
+
+                        return _MockResponse()
+
+                self.llm = _MockLLM()
             else:
                 raise ValueError(f"Unsupported model provider: {self.model_provider}")
 
@@ -107,6 +174,7 @@ class EssayAnalyzer:
         enable_style: bool = True,
         enable_plagiarism: bool = False,
         enable_sentiment: bool = True,
+        language: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Perform comprehensive essay analysis.
@@ -118,14 +186,20 @@ class EssayAnalyzer:
             enable_style: Whether to perform style analysis
             enable_plagiarism: Whether to perform basic plagiarism check
             enable_sentiment: Whether to perform sentiment analysis
+            language: Reserved for backward compatibility. Essay language is auto-detected.
 
         Returns:
             Dictionary containing analysis results
         """
+        if not essay_text or not essay_text.strip():
+            raise ValueError("Essay text cannot be empty.")
+
+        active_language = self._detect_language(essay_text)
+
         results = {
             "basic_stats": self._get_basic_statistics(essay_text),
             "readability": self._analyze_readability(essay_text),
-            "structure": self._analyze_structure(essay_text),
+            "structure": self._analyze_structure(essay_text, active_language),
             "vocabulary": self._analyze_vocabulary(essay_text),
         }
 
@@ -142,7 +216,10 @@ class EssayAnalyzer:
             results["plagiarism"] = self._basic_plagiarism_check(essay_text)
 
         # AI-powered content analysis
-        results["content_analysis"] = self._ai_content_analysis(essay_text, prompt)
+        results["content_analysis"] = self._ai_content_analysis(
+            essay_text, prompt, active_language
+        )
+        results["language"] = active_language
 
         return results
 
@@ -175,7 +252,7 @@ class EssayAnalyzer:
             "reading_time_minutes": textstat.reading_time(text, ms_per_char=14.69),
         }
 
-    def _analyze_structure(self, text: str) -> Dict[str, Any]:
+    def _analyze_structure(self, text: str, language: str = "en") -> Dict[str, Any]:
         """Analyze essay structure and organization."""
         paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
 
@@ -184,14 +261,14 @@ class EssayAnalyzer:
 
         # Check for introduction and conclusion patterns
         has_intro = self._check_introduction_patterns(
-            paragraphs[0] if paragraphs else ""
+            paragraphs[0] if paragraphs else "", language
         )
         has_conclusion = self._check_conclusion_patterns(
-            paragraphs[-1] if paragraphs else ""
+            paragraphs[-1] if paragraphs else "", language
         )
 
         # Analyze transitions
-        transition_words = self._count_transition_words(text)
+        transition_words = self._count_transition_words(text, language)
 
         return {
             "paragraph_count": len(paragraphs),
@@ -384,10 +461,11 @@ class EssayAnalyzer:
         }
 
     def _ai_content_analysis(
-        self, text: str, prompt: Optional[str] = None
+        self, text: str, prompt: Optional[str] = None, language: str = "en"
     ) -> Dict[str, str]:
         """Use AI to analyze content quality and relevance."""
         try:
+            language_name = "Dutch" if language == "nl" else "English"
             system_message = """You are an expert essay evaluator. Analyze the given essay and provide insights on:
 1. Content quality and depth
 2. Argument strength and logic
@@ -395,7 +473,9 @@ class EssayAnalyzer:
 4. Thesis clarity
 5. Overall coherence
 
-Provide constructive feedback in a professional tone."""
+Provide constructive feedback in a professional tone.
+
+Return the full analysis in {language_name}.""".format(language_name=language_name)
 
             user_message = f"Essay to analyze:\n\n{text}"
 
@@ -422,55 +502,101 @@ Provide constructive feedback in a professional tone."""
                 "workspace_attribution": "From Hasif's Workspace",
             }
 
-    def _check_introduction_patterns(self, first_paragraph: str) -> bool:
+    def _check_introduction_patterns(self, first_paragraph: str, language: str = "en") -> bool:
         """Check if the first paragraph has introduction characteristics."""
-        intro_patterns = [
-            r"\b(in this essay|this essay will|i will discuss|this paper examines)\b",
-            r"\b(introduction|background|context)\b",
-            r"\b(thesis|argument|main point)\b",
-        ]
+        intro_patterns_by_language = {
+            "en": [
+                r"\b(in this essay|this essay will|i will discuss|this paper examines)\b",
+                r"\b(introduction|background|context)\b",
+                r"\b(thesis|argument|main point)\b",
+            ],
+            "nl": [
+                r"\b(in dit essay|in deze tekst|ik zal bespreken|dit paper onderzoekt)\b",
+                r"\b(inleiding|achtergrond|context)\b",
+                r"\b(stelling|argument|hoofdpunt)\b",
+            ],
+        }
+
+        intro_patterns = intro_patterns_by_language.get(language, intro_patterns_by_language["en"])
 
         text_lower = first_paragraph.lower()
         return any(re.search(pattern, text_lower) for pattern in intro_patterns)
 
-    def _check_conclusion_patterns(self, last_paragraph: str) -> bool:
+    def _check_conclusion_patterns(self, last_paragraph: str, language: str = "en") -> bool:
         """Check if the last paragraph has conclusion characteristics."""
-        conclusion_patterns = [
-            r"\b(in conclusion|to conclude|in summary|finally)\b",
-            r"\b(therefore|thus|hence|consequently)\b",
-            r"\b(overall|ultimately|in the end)\b",
-        ]
+        conclusion_patterns_by_language = {
+            "en": [
+                r"\b(in conclusion|to conclude|in summary|finally)\b",
+                r"\b(therefore|thus|hence|consequently)\b",
+                r"\b(overall|ultimately|in the end)\b",
+            ],
+            "nl": [
+                r"\b(concluderend|tot slot|samenvattend|ten slotte)\b",
+                r"\b(daarom|dus|hierdoor|bijgevolg)\b",
+                r"\b(over het algemeen|uiteindelijk|aan het einde)\b",
+            ],
+        }
+
+        conclusion_patterns = conclusion_patterns_by_language.get(
+            language, conclusion_patterns_by_language["en"]
+        )
 
         text_lower = last_paragraph.lower()
         return any(re.search(pattern, text_lower) for pattern in conclusion_patterns)
 
-    def _count_transition_words(self, text: str) -> int:
+    def _count_transition_words(self, text: str, language: str = "en") -> int:
         """Count transition words and phrases."""
-        transitions = [
-            "however",
-            "therefore",
-            "furthermore",
-            "moreover",
-            "additionally",
-            "consequently",
-            "nevertheless",
-            "nonetheless",
-            "meanwhile",
-            "first",
-            "second",
-            "third",
-            "finally",
-            "next",
-            "then",
-            "for example",
-            "for instance",
-            "in contrast",
-            "on the other hand",
-            "similarly",
-            "likewise",
-            "in addition",
-            "as a result",
-        ]
+        transitions_by_language = {
+            "en": [
+                "however",
+                "therefore",
+                "furthermore",
+                "moreover",
+                "additionally",
+                "consequently",
+                "nevertheless",
+                "nonetheless",
+                "meanwhile",
+                "first",
+                "second",
+                "third",
+                "finally",
+                "next",
+                "then",
+                "for example",
+                "for instance",
+                "in contrast",
+                "on the other hand",
+                "similarly",
+                "likewise",
+                "in addition",
+                "as a result",
+            ],
+            "nl": [
+                "echter",
+                "daarom",
+                "verder",
+                "bovendien",
+                "daarnaast",
+                "bijgevolg",
+                "niettemin",
+                "ondertussen",
+                "ten eerste",
+                "ten tweede",
+                "ten derde",
+                "ten slotte",
+                "vervolgens",
+                "daarna",
+                "bijvoorbeeld",
+                "daarentegen",
+                "aan de andere kant",
+                "eveneens",
+                "ook",
+                "als gevolg",
+            ],
+        }
+
+        transitions = transitions_by_language.get(language, transitions_by_language["en"])
 
         text_lower = text.lower()
         count = 0
@@ -485,6 +611,8 @@ Provide constructive feedback in a professional tone."""
         passive_patterns = [
             r"\b(was|were|is|are|been|being)\s+\w+ed\b",
             r"\b(was|were|is|are|been|being)\s+\w+en\b",
+            # Capture common irregular participles that appear with a by-phrase.
+            r"\b(am|is|are|was|were|be|been|being)\s+\w+\s+by\b",
         ]
 
         return any(re.search(pattern, sentence.lower()) for pattern in passive_patterns)

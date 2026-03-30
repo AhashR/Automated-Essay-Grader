@@ -10,6 +10,7 @@ import json
 import os
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
+from pathlib import Path
 from langchain_core.messages import HumanMessage, SystemMessage
 
 
@@ -40,20 +41,81 @@ class GradingEngine:
     From Hasif's Workspace - Built for comprehensive essay evaluation.
     """
 
-    def __init__(self, rubric_type: str = "standard", analyzer=None):
+    def __init__(self, rubric_type: str = "standard", analyzer=None, language: str = "en"):
         """
         Initialize the grading engine.
 
         Args:
             rubric_type: Type of rubric to use for grading
             analyzer: EssayAnalyzer instance for AI capabilities
+            language: Language code used in generated grading feedback
         """
-        self.rubric_type = rubric_type
+        self.rubric_type = self._normalize_rubric_type(rubric_type)
         self.analyzer = analyzer
-        self.rubric = self._load_rubric(rubric_type)
+        self.language = self._normalize_language(language)
+        self.rubric = self._load_rubric(self.rubric_type)
+
+    def _normalize_language(self, language: str) -> str:
+        """Normalize language inputs to supported codes."""
+        normalized = (language or "en").strip().lower()
+        aliases = {"english": "en", "dutch": "nl", "nederlands": "nl"}
+        normalized = aliases.get(normalized, normalized)
+        return normalized if normalized in {"en", "nl"} else "en"
+
+    def _normalize_rubric_type(self, rubric_type: str) -> str:
+        """Normalize rubric keys so UI labels and aliases map consistently."""
+        normalized = (rubric_type or "standard").strip().lower().replace("-", "_")
+        normalized = normalized.replace(" ", "_")
+
+        aliases = {
+            "learningstory": "learning_story",
+            "learning_story_rubric": "learning_story",
+            "creative": "creative_writing",
+            "creativewriting": "creative_writing",
+        }
+
+        return aliases.get(normalized, normalized)
+
+    def _load_rubric_from_file(self, rubric_type: str) -> Optional[Dict[str, GradingCriteria]]:
+        """Load rubric definitions from JSON files in data/rubrics when available."""
+        rubrics_dir = Path(__file__).resolve().parent.parent / "data" / "rubrics"
+        candidate_files = [
+            rubrics_dir / f"{rubric_type}.json",
+            rubrics_dir / f"{rubric_type}_rubric.json",
+        ]
+
+        for rubric_file in candidate_files:
+            if not rubric_file.exists():
+                continue
+
+            try:
+                with rubric_file.open("r", encoding="utf-8") as f:
+                    rubric_data = json.load(f)
+
+                criteria = rubric_data.get("criteria", {})
+                parsed_criteria = {}
+                for key, value in criteria.items():
+                    parsed_criteria[key] = GradingCriteria(
+                        name=value.get("name", key.replace("_", " ").title()),
+                        weight=float(value.get("weight", 0.25)),
+                        max_score=int(value.get("max_score", 25)),
+                        description=value.get("description", "No description provided"),
+                    )
+
+                if parsed_criteria:
+                    return parsed_criteria
+            except (OSError, json.JSONDecodeError, TypeError, ValueError):
+                # Fall back to built-in rubric definitions if file is invalid.
+                continue
+
+        return None
 
     def _load_rubric(self, rubric_type: str) -> Dict[str, GradingCriteria]:
         """Load grading rubric based on type."""
+        file_rubric = self._load_rubric_from_file(rubric_type)
+        if file_rubric:
+            return file_rubric
+
         rubrics = {
             "standard": {
                 "content": GradingCriteria(
@@ -159,6 +221,32 @@ class GradingEngine:
                     description="Acknowledgment and refutation of opposing views",
                 ),
             },
+            "learning_story": {
+                "context": GradingCriteria(
+                    name="Context & Understanding",
+                    weight=0.25,
+                    max_score=25,
+                    description="Clarity of context and understanding of required learning",
+                ),
+                "learning_goals": GradingCriteria(
+                    name="Learning Goals & Formulation",
+                    weight=0.25,
+                    max_score=25,
+                    description="Quality and clarity of learning goals",
+                ),
+                "learning_approach": GradingCriteria(
+                    name="Learning Approach & Concrete Actions",
+                    weight=0.25,
+                    max_score=25,
+                    description="Concrete learning steps and suitable resources",
+                ),
+                "substantiation": GradingCriteria(
+                    name="Substantiation & Evidence Quality",
+                    weight=0.25,
+                    max_score=25,
+                    description="Source documentation and evidence quality",
+                ),
+            },
         }
 
         return rubrics.get(rubric_type, rubrics["standard"])
@@ -168,6 +256,7 @@ class GradingEngine:
         essay_text: str,
         analysis_results: Dict[str, Any],
         prompt: Optional[str] = None,
+        language: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Grade an essay based on the selected rubric.
@@ -176,11 +265,13 @@ class GradingEngine:
             essay_text: The essay content
             analysis_results: Results from essay analysis
             prompt: Optional essay prompt
+            language: Optional language override for generated feedback
 
         Returns:
             Dictionary containing grading results
         """
         # Calculate scores for each criterion
+        active_language = self._normalize_language(language or self.language)
         criteria_scores = {}
 
         for criterion_key, criterion in self.rubric.items():
@@ -197,7 +288,11 @@ class GradingEngine:
 
         # Generate detailed feedback
         detailed_feedback = self._generate_detailed_feedback(
-            essay_text, criteria_scores, analysis_results, prompt
+            essay_text,
+            criteria_scores,
+            analysis_results,
+            prompt,
+            language=active_language,
         )
 
         return {
@@ -218,6 +313,7 @@ class GradingEngine:
             ),
             "detailed_feedback": detailed_feedback,
             "rubric_used": self.rubric_type,
+            "language": active_language,
             "grading_breakdown": self._get_grading_breakdown(criteria_scores),
             "workspace_attribution": "From Hasif's Workspace",
         }
@@ -232,6 +328,12 @@ class GradingEngine:
         """Grade a specific criterion."""
 
         if criterion.name == "Content & Ideas" or criterion.name == "Thesis & Argument":
+            return self._grade_content(essay_text, analysis_results, criterion, prompt)
+
+        elif (
+            criterion.name == "Context & Understanding"
+            or criterion.name == "Learning Goals & Formulation"
+        ):
             return self._grade_content(essay_text, analysis_results, criterion, prompt)
 
         elif (
@@ -253,6 +355,7 @@ class GradingEngine:
         elif (
             criterion.name == "Evidence & Support"
             or criterion.name == "Evidence & Sources"
+            or criterion.name == "Substantiation & Evidence Quality"
         ):
             return self._grade_evidence(essay_text, analysis_results, criterion)
 
@@ -703,6 +806,7 @@ class GradingEngine:
         criteria_scores: Dict[str, float],
         analysis_results: Dict[str, Any],
         prompt: Optional[str] = None,
+        language: str = "en",
     ) -> str:
         """Generate detailed feedback using AI."""
         if not self.analyzer:
@@ -718,6 +822,7 @@ class GradingEngine:
                 ]
             )
 
+            language_name = "Dutch" if language == "nl" else "English"
             system_message = f"""You are an expert writing instructor providing detailed feedback on student essays. 
             
 The essay has been graded using the {self.rubric_type} rubric with the following scores:
@@ -729,6 +834,8 @@ Provide constructive, specific feedback that:
 3. Offers concrete suggestions for enhancement
 4. Maintains an encouraging and supportive tone
 5. References specific aspects of the rubric criteria
+
+Return all feedback in {language_name}.
 
 Keep feedback professional and educational. From Hasif's Workspace."""
 

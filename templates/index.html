@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Automated Essay Grader</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="page">
+        <header class="header">
+            <h1>Automated Essay Grader</h1>
+            <p>AI-powered essay analysis and grading system</p>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <section class="alerts">
+                    {% for category, message in messages %}
+                        <div class="alert {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </section>
+            {% endif %}
+        {% endwith %}
+
+        <form method="post" enctype="multipart/form-data" class="layout">
+            <aside class="panel config-panel">
+                <h2>Configuration</h2>
+
+                <label for="model_provider">AI Model Provider</label>
+                <select id="model_provider" name="model_provider">
+                    {% for provider_key, provider_label in model_provider_labels.items() %}
+                        <option value="{{ provider_key }}" {% if provider_key == form_state.model_provider %}selected{% endif %}>
+                            {{ provider_label }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <label for="model_name">Model</label>
+                <select id="model_name" name="model_name">
+                    {% for model_name in model_options %}
+                        <option value="{{ model_name }}" {% if model_name == form_state.model_name %}selected{% endif %}>
+                            {{ model_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <label for="temperature">Temperature: {{ form_state.temperature }}</label>
+                <input id="temperature" name="temperature" type="range" min="0" max="1" step="0.1" value="{{ form_state.temperature }}">
+
+                <label for="max_tokens">Max Tokens: {{ form_state.max_tokens }}</label>
+                <input id="max_tokens" name="max_tokens" type="range" min="500" max="4000" step="100" value="{{ form_state.max_tokens }}">
+
+                <label for="feedback_agent_language">Feedback Agent Language</label>
+                <select id="feedback_agent_language" name="feedback_agent_language">
+                    {% for language_key, language_label in language_labels.items() %}
+                        <option value="{{ language_key }}" {% if language_key == form_state.feedback_agent_language %}selected{% endif %}>
+                            {{ language_label }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <label for="rubric_label">Grading Rubric</label>
+                <input id="rubric_label" type="text" value="{{ rubric_label }}" readonly>
+
+                <h3>Analysis Options</h3>
+                <label class="checkbox">
+                    <input type="checkbox" name="enable_grammar" {% if form_state.enable_grammar %}checked{% endif %}>
+                    Grammar Analysis
+                </label>
+                <label class="checkbox">
+                    <input type="checkbox" name="enable_style" {% if form_state.enable_style %}checked{% endif %}>
+                    Style Analysis
+                </label>
+                <label class="checkbox">
+                    <input type="checkbox" name="enable_plagiarism" {% if form_state.enable_plagiarism %}checked{% endif %}>
+                    Basic Plagiarism Check
+                </label>
+                <label class="checkbox">
+                    <input type="checkbox" name="enable_sentiment" {% if form_state.enable_sentiment %}checked{% endif %}>
+                    Sentiment Analysis
+                </label>
+            </aside>
+
+            <main class="panel content-panel">
+                <h2>Upload Essay</h2>
+
+                <label for="essay_file">Choose an essay file (txt, pdf, docx)</label>
+                <input id="essay_file" name="essay_file" type="file" accept=".txt,.pdf,.docx">
+
+                <label for="essay_text">Or paste your essay here</label>
+                <textarea id="essay_text" name="essay_text" rows="12" placeholder="Paste your essay content here...">{{ form_state.essay_text }}</textarea>
+
+                <label for="essay_prompt">Essay Prompt/Topic (Optional)</label>
+                <textarea id="essay_prompt" name="essay_prompt" rows="4" placeholder="Enter the essay prompt or topic if available...">{{ form_state.essay_prompt }}</textarea>
+
+                <button class="primary" type="submit">Analyze Essay</button>
+
+                {% if results %}
+                    <section class="results">
+                        <h2>Analysis Results</h2>
+                        <p class="meta">
+                            Detected essay language: {{ results.detected_language }} | Feedback agent language: {{ results.feedback_language }}
+                        </p>
+
+                        <div class="stats-grid">
+                            <article class="card">
+                                <h3>Word Count</h3>
+                                <p>{{ results.quick_stats.word_count }}</p>
+                            </article>
+                            <article class="card">
+                                <h3>Characters</h3>
+                                <p>{{ results.quick_stats.character_count }}</p>
+                            </article>
+                            <article class="card">
+                                <h3>Paragraphs</h3>
+                                <p>{{ results.quick_stats.paragraph_count }}</p>
+                            </article>
+                            <article class="card">
+                                <h3>Reading Time</h3>
+                                <p>{{ results.quick_stats.reading_time }} min</p>
+                            </article>
+                        </div>
+
+                        <div class="stats-grid">
+                            <article class="card score">
+                                <h3>Overall Score</h3>
+                                <p>{{ results.overall_score }}/100</p>
+                            </article>
+                            <article class="card score">
+                                <h3>Grade</h3>
+                                <p>{{ results.letter_grade }}</p>
+                            </article>
+                            {% set primary = results.breakdown[0] if results.breakdown|length > 0 else None %}
+                            {% set secondary = results.breakdown[1] if results.breakdown|length > 1 else None %}
+                            <article class="card score">
+                                <h3>{{ primary.name if primary else 'Primary Criterion' }}</h3>
+                                <p>{{ primary.score|round(1) if primary else 0 }}/{{ primary.max_score if primary else 25 }}</p>
+                            </article>
+                            <article class="card score">
+                                <h3>{{ secondary.name if secondary else 'Secondary Criterion' }}</h3>
+                                <p>{{ secondary.score|round(1) if secondary else 0 }}/{{ secondary.max_score if secondary else 25 }}</p>
+                            </article>
+                        </div>
+
+                        <h3>Detailed Breakdown</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Criteria</th>
+                                    <th>Score</th>
+                                    <th>Max Score</th>
+                                    <th>Weight</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in results.breakdown %}
+                                    <tr>
+                                        <td>{{ item.name }}</td>
+                                        <td>{{ item.score|round(1) }}</td>
+                                        <td>{{ item.max_score }}</td>
+                                        <td>{{ item.weight }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+
+                        <h3>Detailed Feedback</h3>
+                        <div class="feedback-box">{{ results.feedback.strengths|default('No specific strengths identified.')|render_feedback }}</div>
+                        <div class="feedback-box">{{ results.feedback.improvements|default('No specific improvements suggested.')|render_feedback }}</div>
+                        <div class="feedback-box">{{ results.feedback.suggestions|default('No specific suggestions available.')|render_feedback }}</div>
+
+                        {% if form_state.enable_grammar and results.grammar_issues %}
+                            <h3>Grammar and Style Issues</h3>
+                            <ul class="issues">
+                                {% for issue in results.grammar_issues %}
+                                    <li>
+                                        <strong>{{ issue.type|default('Issue') }}:</strong>
+                                        {{ issue.description|default('No description') }}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+
+                        <div class="export-actions">
+                            <a class="secondary" href="{{ url_for('export_pdf') }}">Generate PDF Report</a>
+                            <a class="secondary" href="{{ url_for('export_csv') }}">Export to CSV</a>
+                        </div>
+                    </section>
+                {% endif %}
+            </main>
+        </form>
+
+        <footer class="footer">
+            Built from Hasif's Workspace | Powered by AI for Educational Excellence
+        </footer>
+    </div>
+</body>
+</html>

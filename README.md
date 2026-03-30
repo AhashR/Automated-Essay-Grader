@@ -50,7 +50,7 @@ COHERE_API_KEY=your_cohere_api_key_here
 
 **Run the Application**:
 ```bash
-streamlit run app.py
+python app.py
 ```
 
 ## How to Contribute
@@ -108,7 +108,7 @@ automated-essay-grader/
 - `.gitignore` - Specifies files to ignore in version control
 
 **Python Scripts**:
-- `app.py` - Main Streamlit application entry point
+- `app.py` - Main Flask application entry point
 - `src/essay_analyzer.py` - Core essay analysis functionality
 - `src/grading_engine.py` - Grading logic and scoring algorithms
 - `src/feedback_generator.py` - AI-powered feedback generation
@@ -119,7 +119,7 @@ automated-essay-grader/
 - Essay parsing and text extraction from various formats (PDF, DOCX, TXT)
 
 **Essay Grading Process**:
-- Upload essay through Streamlit interface
+- Upload essay through the Flask web interface
 - Text extraction and preprocessing
 - Multi-criteria analysis using AI models
 - Score calculation based on rubric
@@ -136,7 +136,7 @@ automated-essay-grader/
 ## Key Components
 
 ### **`app.py`**:
-Main Streamlit application that provides the user interface for uploading essays and displaying results.
+Main Flask application that provides the user interface for uploading essays and displaying results.
 
 ### **`src/essay_analyzer.py`**:
 Core analysis engine that processes essays and extracts key features for grading.
@@ -153,7 +153,7 @@ Contains all prompt templates used for different aspects of essay evaluation.
 ## Technology Stack
 
 - **Language**: Python 3.10+
-- **Framework**: Streamlit for web interface
+- **Framework**: Flask for web interface
 - **AI Models**: OpenAI GPT-4, Azure AI services
 - **Libraries**: LangChain, pandas, numpy, nltk
 - **Cloud**: Azure for deployment and scaling

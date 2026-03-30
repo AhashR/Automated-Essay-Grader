@@ -8,7 +8,6 @@ Author: Hasif50
 
 from typing import Dict, List, Optional, Any
 from langchain_core.messages import HumanMessage, SystemMessage
-import json
 
 
 class FeedbackGenerator:
@@ -17,14 +16,80 @@ class FeedbackGenerator:
     From Hasif's Workspace - Built for educational excellence.
     """
 
-    def __init__(self, analyzer=None):
+    def __init__(self, analyzer=None, language: str = "en"):
         """
         Initialize the feedback generator.
 
         Args:
             analyzer: EssayAnalyzer instance for AI capabilities
+            language: Language code used in generated feedback ('en' or 'nl')
         """
         self.analyzer = analyzer
+        self.language = self._normalize_language(language)
+
+    def _normalize_language(self, language: str) -> str:
+        """Normalize language inputs to supported codes."""
+        normalized = (language or "en").strip().lower()
+        aliases = {"english": "en", "dutch": "nl", "nederlands": "nl"}
+        normalized = aliases.get(normalized, normalized)
+        return normalized if normalized in {"en", "nl"} else "en"
+
+    def _localize_fixed_feedback_sections(self, feedback: Dict[str, str]) -> Dict[str, str]:
+        """Deterministically localize fixed feedback blocks to Dutch.
+
+        This avoids relying on LLM translation for the main UI sections.
+        """
+        dutch_map = {
+            "**Adequate Length**: Your essay meets the expected word count, demonstrating thorough development of ideas.": "**Voldoende lengte**: Je essay voldoet aan het verwachte aantal woorden en laat een grondige uitwerking van ideeën zien.",
+            "**Good Length**: Your essay has a solid word count that allows for meaningful discussion of the topic.": "**Goede lengte**: Je essay heeft een sterk aantal woorden, waardoor een inhoudelijke bespreking van het onderwerp mogelijk is.",
+            "**Rich Vocabulary**: You demonstrate excellent vocabulary diversity, using varied and sophisticated word choices.": "**Rijke woordenschat**: Je laat uitstekende variatie in woordgebruik zien met gevarieerde en verfijnde woordkeuzes.",
+            "**Good Vocabulary**: Your vocabulary shows good variety and appropriate word selection.": "**Goede woordenschat**: Je woordenschat toont goede variatie en passende woordkeuzes.",
+            "**Academic Language**: You effectively use complex vocabulary that enhances the sophistication of your writing.": "**Academisch taalgebruik**: Je gebruikt complexe woordenschat effectief, wat de kwaliteit van je schrijfstijl verhoogt.",
+            "**Strong Introduction**: Your essay begins with a clear introduction that sets up your topic effectively.": "**Sterke inleiding**: Je essay begint met een duidelijke inleiding die het onderwerp effectief neerzet.",
+            "**Effective Conclusion**: Your essay ends with a conclusion that brings closure to your discussion.": "**Effectieve conclusie**: Je essay eindigt met een conclusie die je betoog op een duidelijke manier afrondt.",
+            "**Good Flow**: You use transition words effectively to connect ideas and create smooth flow between paragraphs.": "**Goede samenhang**: Je gebruikt verbindingswoorden effectief om ideeën te koppelen en een vloeiende overgang tussen alinea’s te creëren.",
+            "**Clear Writing**: Your writing is clear and accessible, making it easy for readers to follow your ideas.": "**Duidelijk schrijfwerk**: Je tekst is helder en toegankelijk, waardoor lezers je ideeën gemakkelijk kunnen volgen.",
+            "**Strong Mechanics**: Your essay demonstrates excellent grammar and mechanical accuracy.": "**Sterke taalverzorging**: Je essay laat uitstekende grammatica en taaltechnische nauwkeurigheid zien.",
+            "**Good Mechanics**: Your essay shows solid command of grammar and writing conventions.": "**Goede taalverzorging**: Je essay toont een degelijke beheersing van grammatica en schrijfconventies.",
+            "**Sentence Variety**: You demonstrate good sentence variety, creating engaging and dynamic prose.": "**Variatie in zinnen**: Je laat goede afwisseling in zinsbouw zien, wat je tekst boeiend en dynamisch maakt.",
+            "**Positive Tone**: Your writing maintains an engaging and optimistic tone throughout.": "**Positieve toon**: Je tekst behoudt een betrokken en optimistische toon.",
+            "**Balanced Tone**: Your writing maintains an appropriate and balanced tone for academic discourse.": "**Gebalanceerde toon**: Je tekst houdt een passende en evenwichtige toon aan voor academisch schrijven.",
+            "**Effort and Completion**: You have completed the assignment and demonstrated effort in your writing.": "**Inzet en afronding**: Je hebt de opdracht afgerond en duidelijke inzet getoond in je schrijfwerk.",
+            "**Essay Length**: Consider expanding your essay to develop your ideas more fully. Aim for at least 300-500 words to provide adequate depth and detail.": "**Lengte van het essay**: Overweeg je essay uit te breiden zodat je ideeën vollediger worden uitgewerkt. Streef naar minstens 300-500 woorden voor voldoende diepgang en detail.",
+            "**Introduction**: Strengthen your introduction by clearly stating your main topic or thesis. A strong opening paragraph should engage the reader and preview your main points.": "**Inleiding**: Versterk je inleiding door je hoofdonderwerp of stelling duidelijk te formuleren. Een sterke openingsalinea trekt de lezer aan en kondigt je belangrijkste punten aan.",
+            "**Conclusion**: Add a more definitive conclusion that summarizes your main points and provides closure. Avoid simply restating your introduction.": "**Conclusie**: Voeg een duidelijkere conclusie toe die je hoofdpunten samenvat en je tekst afrondt. Vermijd het simpelweg herhalen van je inleiding.",
+            "**Paragraph Structure**: Organize your essay into more distinct paragraphs. Each paragraph should focus on one main idea and include supporting details.": "**Alineastructuur**: Organiseer je essay in duidelijkere alinea’s. Elke alinea moet zich richten op één hoofdidee met ondersteunende details.",
+            "**Transitions**: Use more transition words and phrases to connect your ideas and improve the flow between paragraphs (e.g., 'furthermore,' 'however,' 'in addition').": "**Overgangen**: Gebruik meer verbindingswoorden en -zinnen om je ideeën te verbinden en de samenhang tussen alinea’s te verbeteren (bijv. 'bovendien', 'echter', 'daarnaast').",
+            "**Vocabulary Variety**: Expand your vocabulary by using more varied word choices. Avoid repeating the same words frequently and consider using synonyms.": "**Variatie in woordenschat**: Breid je woordenschat uit door gevarieerdere woordkeuzes te gebruiken. Vermijd herhaling en gebruik waar passend synoniemen.",
+            "**Grammar and Mechanics**: Focus on improving grammar, spelling, and punctuation. Consider proofreading more carefully or using grammar-checking tools.": "**Grammatica en taalverzorging**: Richt je op verbetering van grammatica, spelling en interpunctie. Overweeg zorgvuldiger na te kijken of hulpmiddelen voor taalcontrole te gebruiken.",
+            "**Proofreading**: Review your essay for minor grammar and mechanical errors. A final proofread can help catch small mistakes.": "**Nalezen**: Controleer je essay op kleine grammaticale en taaltechnische fouten. Een laatste controleronde helpt om details te verbeteren.",
+            "**Sentence Clarity**: Some sentences may be too complex. Consider breaking down long, complicated sentences into shorter, clearer ones.": "**Duidelijkheid van zinnen**: Sommige zinnen zijn mogelijk te complex. Overweeg lange en ingewikkelde zinnen op te delen in kortere, duidelijkere zinnen.",
+            "**Word Choice**: Avoid overusing certain words. Look for opportunities to use synonyms and vary your language.": "**Woordkeuze**: Vermijd overmatig gebruik van dezelfde woorden. Zoek kansen om synoniemen te gebruiken en je taalgebruik te variëren.",
+            "**Original Language**: Replace clichéd phrases with more original and specific language that better expresses your ideas.": "**Origineel taalgebruik**: Vervang cliché-uitdrukkingen door originelere en specifiekere formuleringen die je ideeën beter overbrengen.",
+            "**Overall Development**: Focus on developing your ideas more thoroughly with specific examples, details, and explanations to support your main points.": "**Algemene uitwerking**: Focus op een grondigere uitwerking van je ideeën met specifieke voorbeelden, details en uitleg ter ondersteuning van je hoofdpunten.",
+            "**Continue Refining**: While your essay shows good effort, continue to refine your writing by focusing on clarity, detail, and precision in your expression.": "**Blijf verfijnen**: Je essay laat goede inzet zien; blijf je schrijfwerk verbeteren door te focussen op helderheid, detail en precisie in formulering.",
+            "**Expand with Examples**: Add specific examples, anecdotes, or evidence to support your main points and reach a more substantial word count.": "**Breid uit met voorbeelden**: Voeg specifieke voorbeelden, anekdotes of bewijs toe om je hoofdpunten te ondersteunen en tot een stevigere tekstomvang te komen.",
+            "**Paragraph Development**: Consider organizing your essay into 4-5 paragraphs: introduction, 2-3 body paragraphs (each with one main idea), and conclusion.": "**Uitwerking van alinea’s**: Overweeg je essay te structureren in 4-5 alinea’s: inleiding, 2-3 kernalinea’s (elk met één hoofdidee) en conclusie.",
+            "**Active Voice**: Try converting passive voice sentences to active voice for stronger, more direct writing. For example, change 'The ball was thrown by John' to 'John threw the ball.'": "**Actieve vorm**: Probeer zinnen in de lijdende vorm om te zetten naar de actieve vorm voor krachtiger en directer schrijven. Bijvoorbeeld: verander 'De bal werd door Jan gegooid' naar 'Jan gooide de bal.'",
+            "**Sentence Length**: Break down overly long sentences into shorter, more manageable ones. Aim for an average of 15-20 words per sentence.": "**Zinslengte**: Deel te lange zinnen op in kortere, beter hanteerbare zinnen. Streef naar gemiddeld 15-20 woorden per zin.",
+            "**Academic Vocabulary**: Incorporate more sophisticated vocabulary appropriate to your topic. Use a thesaurus to find more precise or academic alternatives to common words.": "**Academische woordenschat**: Gebruik meer verfijnde woordenschat die past bij je onderwerp. Gebruik eventueel een synoniemenlijst om preciezere of academischere alternatieven te vinden.",
+            "**Simplify Complex Ideas**: While sophisticated vocabulary is good, ensure your ideas are clearly expressed. Consider breaking complex concepts into simpler, more digestible parts.": "**Vereenvoudig complexe ideeën**: Hoewel geavanceerde woordenschat goed is, moeten je ideeën duidelijk blijven. Overweeg complexe concepten op te delen in eenvoudigere onderdelen.",
+            "**Add Transitions**: Use transitional phrases to connect your ideas: 'First,' 'Additionally,' 'However,' 'In contrast,' 'Furthermore,' 'Finally,' etc.": "**Voeg overgangen toe**: Gebruik verbindende zinnen om je ideeën te koppelen: 'Ten eerste', 'Daarnaast', 'Echter', 'Daarentegen', 'Bovendien', 'Tot slot', enzovoort.",
+            "**Support with Evidence**: Strengthen your arguments with specific examples, statistics, quotes, or personal experiences that directly relate to your main points.": "**Onderbouw met bewijs**: Versterk je argumenten met specifieke voorbeelden, statistieken, citaten of persoonlijke ervaringen die direct aansluiten op je hoofdpunten.",
+            "**Read Aloud**: Read your essay aloud to catch awkward phrasing, run-on sentences, and areas where the flow could be improved.": "**Lees hardop**: Lees je essay hardop om onhandige formuleringen, te lange zinnen en plekken met minder vloeiende samenhang te ontdekken.",
+            "**Peer Review**: Have someone else read your essay and provide feedback on clarity and persuasiveness of your arguments.": "**Peer review**: Laat iemand anders je essay lezen en feedback geven op de helderheid en overtuigingskracht van je argumenten.",
+            "**Final Proofread**: After making content revisions, do a final proofread focusing specifically on grammar, spelling, and punctuation errors.": "**Laatste controle**: Doe na inhoudelijke revisie een laatste correctieronde gericht op grammatica, spelling en interpunctie.",
+        }
+
+        for key in ["strengths", "improvements", "suggestions"]:
+            section_text = feedback.get(key, "")
+            if not isinstance(section_text, str) or not section_text.strip():
+                continue
+
+            blocks = section_text.split("\n\n")
+            feedback[key] = "\n\n".join(dutch_map.get(block, block) for block in blocks)
+
+        return feedback
 
     def generate_feedback(
         self,
@@ -32,6 +97,7 @@ class FeedbackGenerator:
         analysis_results: Dict[str, Any],
         grade_results: Dict[str, Any],
         prompt: Optional[str] = None,
+        language: Optional[str] = None,
     ) -> Dict[str, str]:
         """
         Generate comprehensive feedback for an essay.
@@ -41,17 +107,23 @@ class FeedbackGenerator:
             analysis_results: Results from essay analysis
             grade_results: Results from grading
             prompt: Optional essay prompt
+            language: Optional language override for generated feedback
 
         Returns:
             Dictionary containing different types of feedback
         """
+        active_language = self._normalize_language(language or self.language)
         feedback = {}
 
         # Generate AI-powered feedback
         if self.analyzer:
             feedback.update(
                 self._generate_ai_feedback(
-                    essay_text, analysis_results, grade_results, prompt
+                    essay_text,
+                    analysis_results,
+                    grade_results,
+                    prompt,
+                    language=active_language,
                 )
             )
 
@@ -71,8 +143,13 @@ class FeedbackGenerator:
             analysis_results
         )
 
+        if active_language == "nl":
+            feedback = self._localize_fixed_feedback_sections(feedback)
+            feedback = self._localize_feedback(feedback, active_language)
+
         # Add workspace attribution
         feedback["workspace_attribution"] = "From Hasif's Workspace"
+        feedback["language"] = active_language
 
         return feedback
 
@@ -82,6 +159,7 @@ class FeedbackGenerator:
         analysis_results: Dict[str, Any],
         grade_results: Dict[str, Any],
         prompt: Optional[str] = None,
+        language: str = "en",
     ) -> Dict[str, str]:
         """Generate AI-powered comprehensive feedback."""
         try:
@@ -89,6 +167,7 @@ class FeedbackGenerator:
             overall_score = grade_results.get("overall_score", 0)
             letter_grade = grade_results.get("letter_grade", "N/A")
             word_count = analysis_results.get("basic_stats", {}).get("word_count", 0)
+            language_name = "Dutch" if language == "nl" else "English"
 
             # Create detailed prompt for feedback generation
             system_message = f"""You are an expert writing instructor providing detailed, constructive feedback on student essays. 
@@ -107,6 +186,8 @@ Provide feedback in these categories:
 - Content Strengths
 - Areas for Improvement
 - Specific Recommendations
+
+Return all feedback in {language_name}.
 
 From Hasif's Workspace - Educational Excellence Through AI."""
 
@@ -135,6 +216,49 @@ From Hasif's Workspace - Educational Excellence Through AI."""
                 "ai_comprehensive_feedback": f"Error generating AI feedback: {str(e)}",
                 "ai_provider": "error",
             }
+
+    def _translate_text(self, text: str, target_language: str) -> str:
+        """Translate one feedback block while preserving markdown formatting."""
+        if not text or not self.analyzer:
+            return text
+
+        language_name = "Dutch" if target_language == "nl" else "English"
+
+        try:
+            messages = [
+                SystemMessage(
+                    content=(
+                        "You are a precise educational translator. "
+                        "Translate the given text exactly into "
+                        f"{language_name} while preserving markdown formatting and structure. "
+                        "Return only the translated text."
+                    )
+                ),
+                HumanMessage(content=text),
+            ]
+            response = self.analyzer.llm(messages)
+            return response.content.strip()
+        except Exception:
+            return text
+
+    def _localize_feedback(self, feedback: Dict[str, str], language: str) -> Dict[str, str]:
+        """Localize generated feedback fields when a non-English output is selected."""
+        if language == "en" or not self.analyzer:
+            return feedback
+
+        localizable_keys = [
+            "ai_comprehensive_feedback",
+            "grammar_feedback",
+            "style_feedback",
+            "structure_feedback",
+        ]
+
+        for key in localizable_keys:
+            source_text = feedback.get(key, "")
+            if isinstance(source_text, str) and source_text.strip():
+                feedback[key] = self._translate_text(source_text, language)
+
+        return feedback
 
     def _identify_strengths(
         self, analysis_results: Dict[str, Any], grade_results: Dict[str, Any]

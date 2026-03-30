@@ -13,7 +13,7 @@ The Automated Essay Grader is an AI-powered system designed to help educators an
 - Python 3.10 or higher
 - Git for version control
 - Basic understanding of AI/ML concepts
-- Familiarity with Streamlit and LangChain
+- Familiarity with Flask and LangChain
 
 ### Development Setup
 
@@ -42,7 +42,7 @@ The Automated Essay Grader is an AI-powered system designed to help educators an
 
 5. **Run the Application**
    ```bash
-   streamlit run app.py
+   python app.py
    ```
 
 ## How to Contribute
@@ -86,7 +86,7 @@ We welcome various types of contributions:
 5. **Test Your Changes**
    ```bash
    python -m pytest tests/
-   streamlit run app.py  # Manual testing
+   python app.py  # Manual testing
    ```
 
 6. **Submit a Pull Request**
