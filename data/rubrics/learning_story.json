@@ -1,0 +1,160 @@
+{
+    "name": "Learning Story Rubric - HvA HBO ICT",
+    "description": "Evaluation rubric for Learning Stories based on HvA HBO ICT methodology. Assesses how well students formulate context, learning goals, learning approach, and sources for achieving user stories.",
+    "version": "1.0",
+    "created_by": "HvA HBO ICT",
+    "workspace": "HvA HBO ICT - Automated Essay Grader",
+    "criteria": {
+        "context": {
+            "name": "Context & Understanding",
+            "weight": 0.25,
+            "max_score": 25,
+            "description": "Clarity of context derived from user story and depth of understanding what needs to be learned",
+            "levels": {
+                "excellent": {
+                    "score_range": [23, 25],
+                    "description": "Context is clearly identified from user story. Shows deep understanding of what skills/knowledge are needed and why they are essential for the user story."
+                },
+                "proficient": {
+                    "score_range": [20, 22],
+                    "description": "Context is well identified from user story. Clear understanding of required skills, with good explanation of relevance."
+                },
+                "developing": {
+                    "score_range": [15, 19],
+                    "description": "Context is identified but may lack clarity. Understanding of some required skills present but could be more thorough."
+                },
+                "beginning": {
+                    "score_range": [10, 14],
+                    "description": "Context is vaguely identified. Limited understanding of skills needed or weak connection to user story."
+                },
+                "inadequate": {
+                    "score_range": [0, 9],
+                    "description": "Context is unclear or missing. No clear understanding of what needs to be learned."
+                }
+            }
+        },
+        "learning_goals": {
+            "name": "Learning Goals & Formulation",
+            "weight": 0.25,
+            "max_score": 25,
+            "description": "Quality and clarity of learning goal formulation, including explanation of why each goal is needed",
+            "levels": {
+                "excellent": {
+                    "score_range": [23, 25],
+                    "description": "Learning goals are clearly formulated using 'As a student, I want to learn...' format. Each goal explicitly states why the skill is needed and connects to user story requirements."
+                },
+                "proficient": {
+                    "score_range": [20, 22],
+                    "description": "Learning goals are well formulated with clear purpose. Most goals explain their relevance to the user story."
+                },
+                "developing": {
+                    "score_range": [15, 19],
+                    "description": "Learning goals are present but formulation may lack clarity. Some explanation of relevance, but could be more explicit."
+                },
+                "beginning": {
+                    "score_range": [10, 14],
+                    "description": "Learning goals are vaguely stated. Limited explanation of why these goals are needed."
+                },
+                "inadequate": {
+                    "score_range": [0, 9],
+                    "description": "Learning goals are unclear, missing, or not properly connected to the user story."
+                }
+            }
+        },
+        "learning_approach": {
+            "name": "Learning Approach & Concrete Actions",
+            "weight": 0.25,
+            "max_score": 25,
+            "description": "Quality of the learning plan, including concrete actions, suitable resources, and learning methods",
+            "levels": {
+                "excellent": {
+                    "score_range": [23, 25],
+                    "description": "Detailed learning plan with concrete, actionable steps. Multiple appropriate resources identified (videocourses, literature, knowledgebase, examples). Methods well-matched to learning goals."
+                },
+                "proficient": {
+                    "score_range": [20, 22],
+                    "description": "Good learning plan with concrete actions. Suitable resources identified. Clear connection between resources and learning goals."
+                },
+                "developing": {
+                    "score_range": [15, 19],
+                    "description": "Learning plan present but may lack detail or specificity. Some resources identified but selection could be better justified."
+                },
+                "beginning": {
+                    "score_range": [10, 14],
+                    "description": "Vague learning plan with few concrete actions. Limited resource identification or weak justification."
+                },
+                "inadequate": {
+                    "score_range": [0, 9],
+                    "description": "No clear learning plan, missing actions, or no resources identified."
+                }
+            }
+        },
+        "substantiation": {
+            "name": "Substantiation & Evidence Quality",
+            "weight": 0.25,
+            "max_score": 25,
+            "description": "How well sources are documented, what each source contributed, and quality of the evidence supporting the learning approach",
+            "levels": {
+                "excellent": {
+                    "score_range": [23, 25],
+                    "description": "Excellent documentation of sources. Clear explanation of what each source contributes to the learning goals. Evidence well-organized and professionally presented. Source selection is well-reasoned."
+                },
+                "proficient": {
+                    "score_range": [20, 22],
+                    "description": "Good documentation of sources with clear explanations of their contributions. Evidence is organized and relevant."
+                },
+                "developing": {
+                    "score_range": [15, 19],
+                    "description": "Sources are documented but explanations of contributions may lack detail. Some organization of evidence."
+                },
+                "beginning": {
+                    "score_range": [10, 14],
+                    "description": "Minimal source documentation. Limited explanation of how sources support the learning approach."
+                },
+                "inadequate": {
+                    "score_range": [0, 9],
+                    "description": "Sources are poorly documented or missing. No clear evidence of learning approach substantiation."
+                }
+            }
+        }
+    },
+    "grade_scale": {
+        "A": {
+            "min": 90,
+            "max": 100
+        },
+        "B": {
+            "min": 80,
+            "max": 89
+        },
+        "C": {
+            "min": 70,
+            "max": 79
+        },
+        "D": {
+            "min": 60,
+            "max": 69
+        },
+        "F": {
+            "min": 0,
+            "max": 59
+        }
+    },
+    "instructions": "Use this rubric to evaluate Learning Stories created according to HvA HBO ICT methodology. Each Learning Story should: (1) Identify context from the user story, (2) Formulate clear learning goals with justification, (3) Describe concrete learning approach with suitable resources, and (4) Document sources and their contributions. Weight each criterion equally when calculating the overall score. Consider the knowledgebase and diverse learning resources (videocourses, literature, coaching, examples, training) when evaluating the learning approach.",
+    "attribution": "Based on HvA HBO ICT Knowledge Base - Learning Story Framework",
+    "learning_story_components": {
+        "context": "What do I need to know to accomplish this user story? What skills/knowledge are missing?",
+        "learning_goals": "As a student, I want to learn... [formulate clear, justified learning objectives]",
+        "approach": "How will I learn that? [concrete actions, resources, methods]",
+        "resources": [
+            "Video courses (e.g., W3Schools, YouTube)",
+            "Literature and documentation",
+            "Coaching and mentorship",
+            "Guidelines and best practices",
+            "Examples and case studies",
+            "Practical exercises and workshops",
+            "Training courses",
+            "HvA Knowledgebase"
+        ]
+    }
+}
