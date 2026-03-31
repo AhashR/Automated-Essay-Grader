@@ -26,6 +26,7 @@ from essay_analyzer import EssayAnalyzer
 from feedback_generator import FeedbackGenerator
 from grading_engine import GradingEngine
 from utils import generate_report, load_document, save_results, validate_file
+from retrieval import LearningStoryRetriever
 
 
 load_dotenv()
@@ -68,6 +69,15 @@ MESSAGES: Dict[str, Dict[str, str]] = {
 RUBRIC_TYPE = "learning_story"
 # In-memory cache for report export actions.
 ANALYSIS_CACHE: Dict[str, Dict[str, Any]] = {}
+
+VECTOR_DATA_PATH = Path(
+    os.getenv(
+        "LEARNING_STORY_VECTOR_PATH",
+        Path(__file__).resolve().parent / "data" / "examples" / "learning_stories.json",
+    )
+)
+
+LEARNING_STORY_RETRIEVER = LearningStoryRetriever(data_path=VECTOR_DATA_PATH)
 
 
 def _default_form_state() -> Dict[str, Any]:
@@ -197,6 +207,7 @@ def index():
                 temperature=form_state["temperature"],
                 max_tokens=form_state["max_tokens"],
                 language=form_state["feedback_agent_language"],
+                retriever=LEARNING_STORY_RETRIEVER,
             )
 
             grading_engine = GradingEngine(

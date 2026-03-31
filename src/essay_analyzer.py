@@ -45,6 +45,8 @@ class EssayAnalyzer:
         temperature: float = 0.3,
         max_tokens: int = 2000,
         language: str = "en",
+        retriever: Optional[Any] = None,
+        retrieval_top_k: int = 3,
     ):
         """
         Initialize the learning story analyzer.
@@ -61,6 +63,8 @@ class EssayAnalyzer:
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.language = self._normalize_language(language)
+        self.retriever = retriever
+        self.retrieval_top_k = retrieval_top_k
         self.english_stopwords = set(stopwords.words("english"))
         self.dutch_stopwords = set(stopwords.words("dutch"))
 
@@ -129,6 +133,29 @@ class EssayAnalyzer:
             dutch_hits += sum(1 for w in words if w in dutch_markers)
 
         return "nl" if dutch_hits > english_hits else "en"
+
+    def _gather_retrieval_context(self, essay_text: str, prompt: Optional[str]) -> Dict[str, Any]:
+        """Pull top matches from the internal vector store."""
+        query_text = f"{prompt or ''}\n\n{essay_text}" if prompt else essay_text
+        context: Dict[str, Any] = {"vector_hits": [], "notes": []}
+
+        if self.retriever:
+            try:
+                context["vector_hits"] = self.retriever.search(query_text, top_k=self.retrieval_top_k)
+            except Exception as exc:
+                context["notes"].append(f"Vector search unavailable: {exc}")
+
+        return context
+
+    def _format_retrieval_blocks(self, retrieval_context: Dict[str, Any]) -> Dict[str, str]:
+        """Pre-format retrieval hits for prompt injection."""
+        vector_block = ""
+
+        if retrieval_context.get("vector_hits") and hasattr(self.retriever, "build_context_block"):
+            vector_block = self.retriever.build_context_block(retrieval_context.get("vector_hits", []))
+
+        retrieval_context["vector_block"] = vector_block
+        return retrieval_context
 
     def _initialize_model(self):
         """Initialize the AI model based on provider."""
@@ -261,13 +288,17 @@ class EssayAnalyzer:
         if enable_sentiment:
             results["sentiment"] = self._analyze_sentiment(essay_text)
 
+        retrieval_context = self._gather_retrieval_context(essay_text, prompt)
+        retrieval_context = self._format_retrieval_blocks(retrieval_context)
+
         # AI-powered content analysis
         results["content_analysis"] = self._ai_content_analysis(
-            essay_text, prompt, active_language
+            essay_text, prompt, active_language, retrieval_context
         )
         results["learning_story_signals"] = self._extract_learning_story_signals(
             essay_text, active_language
         )
+        results["retrieval_context"] = retrieval_context
         results["language"] = active_language
 
         return results
@@ -656,21 +687,27 @@ class EssayAnalyzer:
         }
 
     def _ai_content_analysis(
-        self, text: str, prompt: Optional[str] = None, language: str = "en"
+        self,
+        text: str,
+        prompt: Optional[str] = None,
+        language: str = "en",
+        retrieval_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, str]:
-        """Use AI to analyze content quality and relevance."""
+        """Use AI to analyze content quality and relevance, grounded in retrieval context."""
         try:
             language_name = "Dutch" if language == "nl" else "English"
-            system_message = """You are an expert essay evaluator. Analyze the given essay and provide insights on:
-1. Content quality and depth
-2. Argument strength and logic
-3. Evidence and examples usage
-4. Thesis clarity
-5. Overall coherence
 
-Provide constructive feedback in a professional tone.
+            vector_block = ""
+            if retrieval_context:
+                vector_block = retrieval_context.get("vector_block", "")
 
-Return the full analysis in {language_name}.""".format(language_name=language_name)
+            system_message = f"""You are an expert essay evaluator. First, read the internal learning stories (highest priority) and ground your analysis in them.
+
+Context priority:
+1) Internal learning stories (treat as authoritative guidance; align feedback to these):
+{vector_block or 'None retrieved; rely on the student text.'}
+
+Use rubric and policies as guidelines, not rigid rules—adapt pragmatically to the student's situation and keep advice actionable. Focus on content quality, clarity, logic, evidence, and coherence. Return the full analysis in {language_name}."""
 
             user_message = f"Essay to analyze:\n\n{text}"
 

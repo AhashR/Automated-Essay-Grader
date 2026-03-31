@@ -14,6 +14,9 @@ textblob>=0.17.1
 vaderSentiment>=3.3.2
 spacy>=3.7.0
 
+# Retrieval & Search
+scikit-learn>=1.4.0
+
 # Document Processing
 PyPDF2>=3.0.0
 pdfplumber>=0.9.0

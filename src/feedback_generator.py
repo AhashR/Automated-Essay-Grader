@@ -191,6 +191,14 @@ class FeedbackGenerator:
             letter_grade = grade_results.get("letter_grade", "N/A")
             word_count = analysis_results.get("basic_stats", {}).get("word_count", 0)
             language_name = "Dutch" if language == "nl" else "English"
+            retrieval_context = analysis_results.get("retrieval_context", {}) or {}
+            vector_block = retrieval_context.get("vector_block", "")
+            retrieval_text = ""
+            if vector_block:
+                retrieval_text = (
+                    "Ground the feedback in these learning story examples first (highest priority):\n"
+                    f"{vector_block or 'None retrieved'}\n"
+                )
 
             hva_context = ""
             if rubric_used == "learning_story":
@@ -218,6 +226,8 @@ class FeedbackGenerator:
                     "(4) substantiation: sources, evidence/artefacts, reflection/feedback. "
                     f"HvA expectations: {expectation_snippet} "
                     f"{signal_summary}"
+                    " Use these as guidelines—not hard restrictions—so you can adapt to the student's specific learning story. "
+                    f"{retrieval_text}"
                 )
 
             system_message = f"""You are an expert writing instructor providing detailed, constructive feedback on student essays.
@@ -232,6 +242,8 @@ Your feedback should be:
 5. Appropriate for the student's level
 
 {hva_context}
+
+When using context, first align with the internal learning stories (highest priority). Treat rubric rules as guidance; if the student's text is atypical, adapt rather than reject it.
 
 Provide feedback in these categories:
 - Overall Assessment

@@ -11,6 +11,7 @@ The HvA Learning Story Feedback Agent is a Python-based application that provide
 - **Real-time Feedback** - Instant detailed feedback with suggestions for improvement
 - **Rubric-Based Scoring** - Customizable grading rubrics for different learning story types
 - **Export Capabilities** - Generate detailed reports in PDF and CSV formats
+- **Grounded Feedback** - Prioritizes internal learning story examples (vector search) for tailored responses
 
 ## Future Features
 
@@ -48,6 +49,11 @@ GEMINI_API_KEY=your_gemini_api_key_here
 ```bash
 python app.py
 ```
+
+## Context grounding
+
+- Internal examples: stored in `data/examples/learning_stories.json` and searched with TF-IDF; edit or replace with your own HvA learning stories.
+- Custom location: point `LEARNING_STORY_VECTOR_PATH` to a different JSON file with example learning stories.
 
 ## How to Contribute
 
