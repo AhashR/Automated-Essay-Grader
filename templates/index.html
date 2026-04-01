@@ -120,6 +120,15 @@
                         <div class="feedback-box">{{ results.feedback.improvements|default('No specific improvements suggested.')|render_feedback }}</div>
                         <h4>Suggestions</h4>
                         <div class="feedback-box">{{ results.feedback.suggestions|default('No specific suggestions available.')|render_feedback }}</div>
+
+                        <h4>Raw Model Feedback</h4>
+                        <p><strong>Model:</strong> {{ results.ai_feedback_provider|default('Unknown') }}</p>
+                        <div class="feedback-box">{{ results.ai_feedback|default('No model feedback generated.')|render_feedback }}</div>
+
+                        <h4>Raw Model Content Analysis</h4>
+                        <p><strong>Model:</strong> {{ results.ai_content_provider|default('Unknown') }}</p>
+                        <div class="feedback-box">{{ results.ai_content_analysis|default('No model analysis generated.')|render_feedback }}</div>
+
                         <div class="export-actions">
                             <a class="secondary" href="{{ url_for('export_pdf') }}">Generate PDF Report</a>
                             <a class="secondary" href="{{ url_for('export_csv') }}">Export to CSV</a>

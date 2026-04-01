@@ -40,7 +40,7 @@ Main class for learning story analysis functionality.
 ```python
 EssayAnalyzer(
     model_provider: str = "gemini",
-    model_name: str = "gemini-1.5-pro",
+    model_name: str = "gemini-2.5-flash",
     temperature: float = 0.3,
     max_tokens: int = 2000
 )
@@ -481,7 +481,7 @@ if issues:
     print("Configuration issues:", issues)
 
 # Get model info
-model_info = Settings.get_model_config("gemini", "gemini-1.5-pro")
+model_info = Settings.get_model_config("gemini", "gemini-2.5-flash")
 print(model_info)
 ```
 

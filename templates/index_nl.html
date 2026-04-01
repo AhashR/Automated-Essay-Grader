@@ -125,6 +125,15 @@
                         <div class="feedback-box">{{ results.feedback.improvements|default('Geen specifieke verbeterpunten voorgesteld.')|render_feedback }}</div>
                         <h4>Suggesties</h4>
                         <div class="feedback-box">{{ results.feedback.suggestions|default('Geen specifieke suggesties beschikbaar.')|render_feedback }}</div>
+
+                        <h4>Ruwe modelfeedback</h4>
+                        <p><strong>Model:</strong> {{ results.ai_feedback_provider|default('Onbekend') }}</p>
+                        <div class="feedback-box">{{ results.ai_feedback|default('Geen modelfeedback gegenereerd.')|render_feedback }}</div>
+
+                        <h4>Ruwe modelanalyse van inhoud</h4>
+                        <p><strong>Model:</strong> {{ results.ai_content_provider|default('Onbekend') }}</p>
+                        <div class="feedback-box">{{ results.ai_content_analysis|default('Geen modelanalyse gegenereerd.')|render_feedback }}</div>
+
                         <div class="export-actions">
                             <a class="secondary" href="{{ url_for('export_pdf') }}">Genereer PDF-rapport</a>
                             <a class="secondary" href="{{ url_for('export_csv') }}">Exporteer naar CSV</a>

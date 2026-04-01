@@ -50,6 +50,11 @@ GEMINI_API_KEY=your_gemini_api_key_here
 python app.py
 ```
 
+**Run the Application in debug mode**:
+```bash
+python -m flask --app app.py --debug run
+```
+
 ## Context grounding
 
 - Internal examples: stored in `data/examples/learning_stories.json` and searched with TF-IDF; edit or replace with your own HvA learning stories.

@@ -41,7 +41,7 @@ class EssayAnalyzer:
     def __init__(
         self,
         model_provider: str = "gemini",
-        model_name: str = "gemini-1.5-pro",
+        model_name: str = "gemini-2.5-flash",
         temperature: float = 0.3,
         max_tokens: int = 2000,
         language: str = "en",
@@ -194,11 +194,14 @@ class EssayAnalyzer:
         elif self.model_provider == "mock":
             # Lightweight mock for tests that should not call external LLMs.
             class _MockLLM:
-                def __call__(self, messages):
+                def invoke(self, messages):
                     class _MockResponse:
                         content = "Mock analysis response"
 
                     return _MockResponse()
+
+                def __call__(self, messages):
+                    return self.invoke(messages)
 
             return _MockLLM()
         else:
@@ -227,7 +230,10 @@ class EssayAnalyzer:
             llm = self.llm if temperature is None and max_tokens is None else self._build_llm(
                 temperature=temperature, max_tokens=max_tokens
             )
-            response = llm(messages)
+            if hasattr(llm, "invoke"):
+                response = llm.invoke(messages)
+            else:
+                response = llm(messages)
             logger.info(
                 "LLM call success provider=%s model=%s content_length=%s",
                 self.model_provider,
@@ -701,13 +707,36 @@ class EssayAnalyzer:
             if retrieval_context:
                 vector_block = retrieval_context.get("vector_block", "")
 
-            system_message = f"""You are an expert essay evaluator. First, read the internal learning stories (highest priority) and ground your analysis in them.
+            system_message = f"""You are an expert evaluator of HvA Learning Stories. Your role is to assess how well students structure their learning journey to bridge gaps between current skills and required competencies.
 
-Context priority:
-1) Internal learning stories (treat as authoritative guidance; align feedback to these):
-{vector_block or 'None retrieved; rely on the student text.'}
+LEARNING STORY STRUCTURE YOU ARE EVALUATING:
+1. **Context (Situatie) Pillar**: Student identifies specific problem, role, stakeholders, and deliverable requirements derived from a user story.
+   - Look for: Clear problem statement, defined role, identified stakeholders, explicit deliverable.
+   - Red flags: Vague context, missing stakeholder perspective, unclear connection to user story.
 
-Use rubric and policies as guidelines, not rigid rules—adapt pragmatically to the student's situation and keep advice actionable. Focus on content quality, clarity, logic, evidence, and coherence. Return the full analysis in {language_name}."""
+2. **Learning Goals Pillar**: Student formulates 2-3 learning goals using the format 'Als student wil ik leren [X] zodat ik [Y] kan bereiken.' Each goal has measurable success criteria.
+   - Look for: Specific, measurable goals tied to the context; success criteria are clear and verifiable.
+   - Red flags: Generic goals, missing 'zodat' rationale, no success criteria defined.
+
+3. **Learning Approach Pillar**: Student designs concrete, actionable steps including planned experiments/research, chosen resources, and realistic timelines.
+   - Look for: Step-by-step plan, specific resources (links, books, videos, mentors), evidence of resource evaluation, time estimates.
+   - Red flags: Vague 'I'll learn...' without concrete steps, no resource references, unrealistic deadlines.
+
+4. **Substantiation & Evidence Pillar**: Student cites sources, includes artifacts (screenshots, links, code, reflections), and reflects on actual learning outcomes.
+   - Look for: Proper source attribution, actual evidence/artifacts, reflection on what worked/didn't, connections to success criteria.
+   - Red flags: Unsupported claims, no artifacts, missing reflection, broken links.
+
+INTERNAL EXEMPLARS (highest priority):
+{vector_block or 'None available; use above standards as baseline.'}
+
+EVALUATION APPROACH:
+- Focus on **learning strategy quality**, not grammar or formatting.
+- Give pragmatic feedback: highlight the strongest pillar and the most improvable pillar.
+- Flag missing elements and suggest concrete ways to strengthen each pillar.
+- Reference specific sentences/sections from the submission.
+- Mention relevant resources (knowledge base, best practices) when appropriate.
+
+Return full analysis in {language_name}. Be encouraging but honest about gaps."""
 
             user_message = f"Essay to analyze:\n\n{text}"
 

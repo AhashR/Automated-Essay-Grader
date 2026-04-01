@@ -36,7 +36,7 @@ app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me-in-production")
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 
 MODEL_OPTIONS = {
-    "gemini": ["gemini-1.5-pro", "gemini-1.5-flash"],
+    "gemini": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite"],
 }
 
 MODEL_PROVIDER_LABELS = {
@@ -83,7 +83,7 @@ LEARNING_STORY_RETRIEVER = LearningStoryRetriever(data_path=VECTOR_DATA_PATH)
 def _default_form_state() -> Dict[str, Any]:
     return {
         "model_provider": "gemini",
-        "model_name": "gemini-1.5-pro",
+        "model_name": "gemini-2.5-flash",
         "feedback_agent_language": "en",
         "essay_text": "",
         "essay_prompt": "",
@@ -149,7 +149,7 @@ def index():
 
     if request.method == "POST":
         form_state["model_provider"] = request.form.get("model_provider", "gemini")
-        form_state["model_name"] = request.form.get("model_name", "gpt-4")
+        form_state["model_name"] = request.form.get("model_name", "gemini-2.5-flash")
         form_state["temperature"] = float(request.form.get("temperature", 0.3))
         form_state["max_tokens"] = int(request.form.get("max_tokens", 2000))
         form_state["feedback_agent_language"] = _normalize_language(

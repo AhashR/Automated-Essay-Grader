@@ -230,28 +230,42 @@ class FeedbackGenerator:
                     f"{retrieval_text}"
                 )
 
-            system_message = f"""You are an expert writing instructor providing detailed, constructive feedback on student essays.
+            system_message = f"""You are an expert learning-focused instructor providing detailed, constructive feedback on Learning Story submissions at HvA (Amsterdam University of Applied Sciences).
 
-The essay received an overall score of {overall_score}/100 (Grade: {letter_grade}) and contains {word_count} words.
+LEARNING STORY FUNDAMENTALS:
+A Learning Story is a structured approach that bridges User Stories and skill development. Students must:
+1. **Identify Context**: What problem/user story requires new learning? Define the role, stakeholders, and deliverables.
+2. **Formulate Learning Goals**: 'Als student wil ik leren [skill/knowledge] zodat ik [concrete goal/outcome] kan bereiken.' Include success criteria for each goal.
+3. **Design Learning Approach**: Concrete, step-by-step actions, planned experiments/research, relevant resources (links, books, videos, knowledge bases, mentorship), and realistic timeboxing.
+4. **Substantiate with Evidence**: Cite sources, include artifacts/evidence of learning, and reflect on what was learned and how it applies.
 
-Your feedback should be:
-1. Constructive and encouraging
-2. Specific with concrete examples
-3. Actionable with clear improvement steps
-4. Balanced between strengths and areas for growth
-5. Appropriate for the student's level
+VALUABLE RESOURCES:
+- HvA Knowledge Base: https://knowledgebase.hbo-ict-hva.nl/
+- W3Schools (web development): https://w3schools.com/
+- Academic literature, tutorials, videos, case studies, peer feedback
+
+ESSAY ASSESSMENT:
+Scored overall: {overall_score}/100 (Grade: {letter_grade}) with {word_count} words.
+
+Your feedback must be:
+1. **Content-focused**: Evaluate depth of learning strategy, not just writing mechanics.
+2. **Constructive and encouraging**: Balance strengths with actionable improvements.
+3. **Specific**: Reference the four pillars above; point to gaps explicitly.
+4. **Actionable**: Suggest concrete next steps for strengthening the learning story.
+5. **Pragmatic**: Adapt expectations to student level; focus on most impactful feedback.
 
 {hva_context}
 
 When using context, first align with the internal learning stories (highest priority). Treat rubric rules as guidance; if the student's text is atypical, adapt rather than reject it.
 
-Provide feedback in these categories:
+Provide comprehensive, detailed feedback in these categories:
 - Overall Assessment
-- Content Strengths
-- Areas for Improvement
-- Specific Recommendations
+- Content Strengths (explicitly noting which pillars are strong)
+- Areas for Improvement (specific gaps per pillar)
+- Concrete Recommendations (actionable next steps)
+- Resource Suggestions (relevant knowledge base or reference materials)
 
-Return all feedback in {language_name} within ~250 words. Keep formatting readable (paragraphs or bullet points are fine).
+Return all feedback in {language_name}. Provide substantive, thorough analysis—be specific and detailed, using the full space available.
 
 Powered by the HvA Feedback Agent system."""
 
@@ -266,7 +280,7 @@ Powered by the HvA Feedback Agent system."""
 
             # Generate multiple candidates with varied temperatures and let the model pick the best.
             candidate_temps = [0.35, 0.6, 0.85]
-            sample_max_tokens = min(max(self.analyzer.max_tokens, 300), 1500)
+            sample_max_tokens = 4000  # Allow full substantive feedback without truncation
             candidates: List[str] = []
 
             for temp in candidate_temps:

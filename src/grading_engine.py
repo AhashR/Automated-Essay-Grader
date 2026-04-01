@@ -986,7 +986,7 @@ Keep feedback professional and educational."""
                 HumanMessage(content=user_message),
             ]
 
-            response = self.analyzer.llm(messages)
+            response = self.analyzer.run_chat(messages)
             return response.content
 
         except Exception as e:

@@ -26,7 +26,7 @@ class Settings:
 
     # Google Gemini Configuration
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
     # Cohere Configuration
     COHERE_API_KEY = os.getenv("COHERE_API_KEY")
@@ -67,15 +67,21 @@ class Settings:
     # Available Models
     AVAILABLE_MODELS = {
         "gemini": {
-            "gemini-1.5-pro": {
-                "name": "Gemini 1.5 Pro",
-                "description": "Google Gemini flagship model for high-quality reasoning",
+            "gemini-2.5-flash": {
+                "name": "Gemini 2.5 Flash",
+                "description": "Best all-rounder for fast, reasoning-capable feedback",
                 "max_tokens": 4000,
-                "cost_tier": "medium",
+                "cost_tier": "low",
             },
-            "gemini-1.5-flash": {
-                "name": "Gemini 1.5 Flash",
-                "description": "Optimized for speed and efficiency",
+            "gemini-2.5-pro": {
+                "name": "Gemini 2.5 Pro",
+                "description": "Highest quality option for complex rubric-based evaluation",
+                "max_tokens": 4000,
+                "cost_tier": "high",
+            },
+            "gemini-2.5-flash-lite": {
+                "name": "Gemini 2.5 Flash Lite",
+                "description": "Lightweight option for high-volume batch processing",
                 "max_tokens": 2000,
                 "cost_tier": "low",
             },
