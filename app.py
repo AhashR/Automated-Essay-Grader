@@ -1,21 +1,18 @@
 import os
 import re
 import sys
-import uuid
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
+import markdown
 from dotenv import load_dotenv
 from flask import (
     Flask,
     flash,
     jsonify,
-    redirect,
     render_template,
     request,
-    send_file,
     session,
-    url_for,
 )
 from markupsafe import Markup, escape
 
@@ -25,7 +22,7 @@ sys.path.append(str(Path(__file__).parent / "src"))
 from essay_analyzer import EssayAnalyzer
 from feedback_generator import FeedbackGenerator
 from grading_engine import GradingEngine
-from utils import generate_report, load_document, save_results, validate_file
+from utils import load_document, validate_file
 from retrieval import LearningStoryRetriever
 
 
@@ -56,19 +53,15 @@ TEMPLATES = {
 MESSAGES: Dict[str, Dict[str, str]] = {
     "en": {
         "upload_or_paste_error": "Please upload a file or paste a learning story to analyze.",
-        "error_no_results": "No analysis results found. Run an analysis first.",
         "analysis_error_prefix": "Error during analysis",
     },
     "nl": {
         "upload_or_paste_error": "Upload een bestand of plak een learning story om te analyseren.",
-        "error_no_results": "Geen resultaten gevonden. Voer eerst een analyse uit.",
         "analysis_error_prefix": "Fout tijdens de analyse",
     },
 }
 
 RUBRIC_TYPE = "learning_story"
-# In-memory cache for report export actions.
-ANALYSIS_CACHE: Dict[str, Dict[str, Any]] = {}
 
 VECTOR_DATA_PATH = Path(
     os.getenv(
@@ -114,28 +107,20 @@ def _render_feedback_markdown(text: str) -> Markup:
     if not text:
         return Markup("")
 
-    escaped = escape(text)
-    escaped = re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", str(escaped))
-    escaped = escaped.replace("\n", "<br>")
-    return Markup(escaped)
+    # Escape raw HTML first, then render markdown so model formatting is preserved
+    # while preventing injected HTML/script from being interpreted.
+    safe_text = str(escape(text))
+    rendered = markdown.markdown(
+        safe_text,
+        extensions=["extra", "sane_lists", "nl2br"],
+        output_format="html5",
+    )
+    return Markup(rendered)
 
 
 @app.template_filter("render_feedback")
 def render_feedback(text: str) -> Markup:
     return _render_feedback_markdown(text)
-
-
-def _cache_analysis(payload: Dict[str, Any]) -> None:
-    cache_id = uuid.uuid4().hex
-    ANALYSIS_CACHE[cache_id] = payload
-    session["analysis_id"] = cache_id
-
-
-def _get_cached_analysis() -> Optional[Dict[str, Any]]:
-    analysis_id = session.get("analysis_id")
-    if not analysis_id:
-        return None
-    return ANALYSIS_CACHE.get(analysis_id)
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -265,25 +250,9 @@ def index():
                     feedback.get("language", "en"), "English"
                 ),
                 "grammar_issues": grammar_issues,
-                "ai_content_analysis": analysis_results.get("content_analysis", {}).get(
-                    "ai_analysis", ""
-                ),
-                "ai_content_provider": analysis_results.get("content_analysis", {}).get(
-                    "analysis_provider", ""
-                ),
                 "ai_feedback": feedback.get("ai_comprehensive_feedback", ""),
-                "ai_feedback_provider": feedback.get("ai_provider", ""),
                 "rubric_source": grade_results.get("rubric_source", "unknown"),
             }
-
-            _cache_analysis(
-                {
-                    "content": content,
-                    "analysis_results": analysis_results,
-                    "grade_results": grade_results,
-                    "feedback": feedback,
-                }
-            )
         except Exception as exc:
             flash(f"{messages['analysis_error_prefix']}: {exc}", "error")
 
@@ -298,45 +267,6 @@ def index():
         active_language=active_language,
         results=results,
     )
-
-
-@app.route("/export/pdf")
-def export_pdf():
-    active_language = _normalize_language(session.get("ui_language", "en"))
-    messages = MESSAGES.get(active_language, MESSAGES["en"])
-    cached = _get_cached_analysis()
-    if not cached:
-        flash(messages["error_no_results"], "error")
-        return redirect(url_for("index"))
-
-    report_path = generate_report(
-        cached["content"],
-        cached["analysis_results"],
-        cached["grade_results"],
-        cached["feedback"],
-        format="pdf",
-    )
-
-    return send_file(report_path, as_attachment=True, download_name=Path(report_path).name)
-
-
-@app.route("/export/csv")
-def export_csv():
-    active_language = _normalize_language(session.get("ui_language", "en"))
-    messages = MESSAGES.get(active_language, MESSAGES["en"])
-    cached = _get_cached_analysis()
-    if not cached:
-        flash(messages["error_no_results"], "error")
-        return redirect(url_for("index"))
-
-    csv_path = save_results(
-        cached["analysis_results"],
-        cached["grade_results"],
-        cached["feedback"],
-        format="csv",
-    )
-
-    return send_file(csv_path, as_attachment=True, download_name=Path(csv_path).name)
 
 
 @app.route("/health")

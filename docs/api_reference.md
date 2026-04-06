@@ -129,11 +129,6 @@ Performs comprehensive learning story analysis.
         "neutral": float,
         "compound": float,
         "overall_tone": str
-    },
-    "content_analysis": {
-        "ai_analysis": str,
-        "analysis_provider": str,
-        "workspace_attribution": str
     }
 }
 ```
@@ -252,9 +247,6 @@ generate_feedback(
 ```python
 {
     "ai_comprehensive_feedback": str,
-    "strengths": str,
-    "improvements": str,
-    "suggestions": str,
     "grammar_feedback": str,
     "style_feedback": str,
     "structure_feedback": str,
@@ -283,37 +275,6 @@ validate_file(uploaded_file) -> bool
 ```
 
 Validates uploaded file for size and format.
-
-### Report Generation
-
-#### `generate_report()`
-
-```python
-generate_report(
-    essay_text: str,
-    analysis_results: Dict[str, Any],
-    grade_results: Dict[str, Any],
-    feedback: Dict[str, str],
-    format: str = 'pdf',
-    filename: Optional[str] = None
-) -> str
-```
-
-Generates comprehensive reports in PDF or HTML format.
-
-#### `save_results()`
-
-```python
-save_results(
-    analysis_results: Dict[str, Any],
-    grade_results: Dict[str, Any],
-    feedback: Dict[str, str],
-    format: str = 'json',
-    filename: Optional[str] = None
-) -> str
-```
-
-Saves analysis results to file in JSON or CSV format.
 
 ### Utility Functions
 
@@ -352,7 +313,6 @@ Main configuration class with application settings.
 Collection of AI prompt templates.
 
 **Available Prompts:**
-- `CONTENT_ANALYSIS_PROMPT`
 - `ORGANIZATION_ANALYSIS_PROMPT`
 - `STYLE_ANALYSIS_PROMPT`
 - `GRAMMAR_ANALYSIS_PROMPT`
@@ -375,8 +335,7 @@ AnalysisResult = {
     "vocabulary": VocabularyAnalysis,
     "grammar": GrammarAnalysis,
     "style": StyleAnalysis,
-    "sentiment": SentimentAnalysis,
-    "content_analysis": ContentAnalysis
+    "sentiment": SentimentAnalysis
 }
 ```
 
@@ -397,9 +356,6 @@ GradeResult = {
 
 ```python
 FeedbackResult = {
-    "strengths": str,
-    "improvements": str,
-    "suggestions": str,
     "grammar_feedback": str,
     "style_feedback": str,
     "structure_feedback": str,

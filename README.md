@@ -8,7 +8,7 @@ The HvA Learning Story Feedback Agent is a Python-based application that provide
 
 - **AI-Powered Learning Story Analysis** - Comprehensive evaluation of learning story content, structure, and quality
 - **Multi-Criteria Grading** - Assessment across dimensions including grammar, coherence, reflection depth, and creativity
-- **Real-time Feedback** - Instant detailed feedback with suggestions for improvement
+- **Real-time Feedback** - Instant detailed Markdown feedback
 - **Rubric-Based Scoring** - Customizable grading rubrics for different learning story types
 - **Export Capabilities** - Generate detailed reports in PDF and CSV formats
 - **Grounded Feedback** - Prioritizes internal learning story examples (vector search) for tailored responses
@@ -131,7 +131,6 @@ HvA-Feedback-Agent/
 - Multi-criteria analysis using AI models
 - Score calculation based on rubric
 - Detailed feedback generation
-- Report generation and export
 
 **Dependencies**:
 - `requirements.txt` - All required Python packages
@@ -162,7 +161,7 @@ Contains all prompt templates used for different aspects of learning story evalu
 - **Language**: Python 3.10+
 - **Framework**: Flask for web interface
 - **AI Models**: Google Gemini
-- **Libraries**: LangChain, pandas, numpy, nltk
+- **Libraries**: LangChain, numpy, nltk
 - **Cloud**: Flexible (container-ready)
 
 ## About

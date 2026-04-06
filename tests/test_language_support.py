@@ -98,7 +98,7 @@ def test_feedback_language_does_not_change_scores():
     assert en_result["criteria_scores"] == nl_result["criteria_scores"]
 
 
-def test_nederlands_agent_language_localizes_ui_feedback_sections():
+def test_nederlands_agent_language_keeps_remaining_feedback_fields():
     generator = FeedbackGenerator(analyzer=None)
 
     analysis_results = {
@@ -128,7 +128,68 @@ def test_nederlands_agent_language_localizes_ui_feedback_sections():
     )
 
     assert feedback["language"] == "nl"
-    assert "**Goede lengte**" in feedback["strengths"]
-    assert "**Good Length**" not in feedback["strengths"]
-    assert "**Onderbouw met bewijs**" in feedback["suggestions"]
-    assert "**Support with Evidence**" not in feedback["suggestions"]
+    assert "strengths" not in feedback
+    assert "improvements" not in feedback
+    assert "suggestions" not in feedback
+    assert "grammar_feedback" in feedback
+    assert "style_feedback" in feedback
+    assert "structure_feedback" in feedback
+
+
+def test_english_agent_language_has_no_dutch_phrase_templates_in_ui_feedback_sections():
+    generator = FeedbackGenerator(analyzer=None)
+
+    analysis_results = {
+        "learning_story_signals": {
+            "context_mentions": 2,
+            "goal_statements": 1,
+            "actions_count": 1,
+            "resource_mentions": 1,
+            "evidence_mentions": 0,
+            "reflection_mentions": 0,
+            "link_mentions": 0,
+        },
+        "basic_stats": {"word_count": 300},
+        "vocabulary": {"lexical_diversity": 0.5, "complex_word_ratio": 0.1},
+        "structure": {
+            "has_clear_introduction": True,
+            "has_clear_conclusion": False,
+            "paragraph_count": 3,
+            "transition_word_count": 2,
+        },
+        "grammar": {"issue_count": 2, "grammar_issues": []},
+        "readability": {"flesch_reading_ease": 55, "flesch_kincaid_grade": 9},
+        "style": {"sentence_variety_score": 8, "sentence_starter_variety": 0.6, "style_issues": []},
+    }
+
+    grade_results = {
+        "rubric_used": "learning_story",
+        "criteria_scores": {"context": 15, "learning_goals": 15, "learning_approach": 15},
+        "overall_score": 70,
+    }
+
+    feedback = generator.generate_feedback(
+        essay_text="Test learning story",
+        analysis_results=analysis_results,
+        grade_results=grade_results,
+        language="en",
+    )
+
+    assert "strengths" not in feedback
+    assert "improvements" not in feedback
+    assert "suggestions" not in feedback
+    assert feedback["language"] == "en"
+
+
+def test_judge_output_candidate_label_resolves_to_candidate_text():
+    generator = FeedbackGenerator(analyzer=None)
+
+    candidates = [
+        "First complete feedback",
+        "Second complete feedback",
+        "Third complete feedback",
+    ]
+
+    assert generator._resolve_judge_selection("Candidate 1", candidates) == candidates[0]
+    assert generator._resolve_judge_selection("Candidate 2:\nSecond complete feedback", candidates) == candidates[1]
+    assert generator._resolve_judge_selection("Candidate 3", candidates) == candidates[2]

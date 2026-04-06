@@ -1,6 +1,7 @@
 # Core
 flask>=3.0.0
 python-dotenv>=1.0.0
+markdown>=3.6
 
 # LLM Providers
 langchain-google-genai>=0.1.0
@@ -21,12 +22,6 @@ scikit-learn>=1.4.0
 PyPDF2>=3.0.0
 pdfplumber>=0.9.0
 python-docx>=0.8.11
-
-# Data Handling
-pandas>=2.0.0
-
-# Reporting
-reportlab>=3.6.12
 
 # Testing
 pytest>=7.4.0

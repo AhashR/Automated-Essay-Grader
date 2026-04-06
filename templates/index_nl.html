@@ -3,146 +3,236 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>HvA Feedbackagent</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>HvA Feedback AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Source+Serif+4:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: "Manrope", "Segoe UI", sans-serif;
+        }
+
+        .brand-serif {
+        .feedback-box h3,
+                                    <h4 class="text-lg font-semibold text-slate-900">Feedback</h4>
+        .feedback-box h5,
+        .feedback-box h6,
+        .feedback-box blockquote,
+        .feedback-box pre,
+        .feedback-box table {
+            margin-bottom: 0.85rem;
+        }
+
+        .feedback-box h1,
+        .feedback-box h2,
+        .feedback-box h3,
+        .feedback-box h4,
+        .feedback-box h5,
+        .feedback-box h6 {
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.3;
+        }
+
+        .feedback-box h1 { font-size: 1.5rem; }
+        .feedback-box h2 { font-size: 1.25rem; }
+        .feedback-box h3 { font-size: 1.1rem; }
+
+        .feedback-box p:last-child,
+        .feedback-box ul:last-child,
+        .feedback-box ol:last-child,
+        .feedback-box blockquote:last-child,
+        .feedback-box pre:last-child,
+        .feedback-box table:last-child {
+            margin-bottom: 0;
+        }
+
+        .feedback-box blockquote {
+            padding-left: 1rem;
+            border-left: 4px solid #c7d2fe;
+            color: #475569;
+        }
+
+        .feedback-box a {
+            color: #4338ca;
+            text-decoration: underline;
+            text-underline-offset: 0.15em;
+        }
+
+        .feedback-box strong {
+            color: #0f172a;
+        }
+
+        .feedback-box code {
+            padding: 0.1rem 0.3rem;
+            border-radius: 0.25rem;
+            background: #eef2ff;
+        }
+
+        .feedback-box pre {
+            overflow: auto;
+            border-radius: 0.5rem;
+            padding: 0.8rem;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .feedback-box table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .feedback-box th,
+        .feedback-box td {
+            border: 1px solid #cbd5e1;
+            padding: 0.5rem 0.65rem;
+            vertical-align: top;
+        }
+
+        .feedback-box th {
+            background: #e2e8f0;
+            color: #0f172a;
+            text-align: left;
+        }
+    </style>
 </head>
-<body>
-    <div class="page">
-        <header class="header">
-            <h1>HvA Feedbackagent</h1>
-            <p>AI-gestuurd systeem voor feedback en beoordeling van learning stories</p>
-        </header>
-
-        <div class="language-row">
-            <span class="language-label">Taal</span>
-            <div class="language-toggle" role="group" aria-label="Taal">
-                <a class="{% if active_language == 'en' %}active{% endif %}" href="{{ url_for('index', lang='en') }}">EN</a>
-                <a class="{% if active_language == 'nl' %}active{% endif %}" href="{{ url_for('index', lang='nl') }}">NL</a>
+<body class="min-h-screen bg-[#efefef] text-slate-900">
+    <div class="flex min-h-screen">
+        <aside class="hidden w-72 flex-col bg-[#25167f] text-white lg:flex">
+            <div class="border-b border-white/20 px-7 py-6">
+                <h1 class="brand-serif text-2xl font-semibold leading-none">HvA Feedback AI</h1>
             </div>
-        </div>
+            <div class="px-7 py-6">
+                <button type="button" class="w-full rounded-md border border-white/30 px-4 py-2.5 text-left text-sm font-semibold transition hover:bg-white/10">+ Nieuwe chat</button>
+                <p class="mt-5 text-sm font-semibold text-white/90">Alle chats</p>
+            </div>
+            <div class="mt-auto px-7 py-6 text-xs text-white/65">HvA Feedback AI</div>
+        </aside>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <section class="alerts">
-                    {% for category, message in messages %}
-                        <div class="alert {{ category }}">{{ message }}</div>
-                    {% endfor %}
-                </section>
-            {% endif %}
-        {% endwith %}
+        <main class="relative flex-1 pb-56">
+            <form method="post" action="{{ url_for('index', lang=active_language) }}" enctype="multipart/form-data" class="h-full">
+                <input type="hidden" name="feedback_agent_language" value="{{ active_language }}">
 
-        <form method="post" action="{{ url_for('index', lang=active_language) }}" enctype="multipart/form-data" class="layout">
-            <input type="hidden" name="feedback_agent_language" value="{{ active_language }}">
-            <aside class="panel config-panel">
-                <h2>Configuratie</h2>
+                <div class="mx-auto max-w-4xl px-6 pb-14 pt-10 md:px-10 md:pt-16">
+                    <div class="mb-8 flex items-center justify-end gap-2">
+                        <span class="text-sm font-semibold text-slate-500">Taal</span>
+                        <a href="{{ url_for('index', lang='en') }}" class="rounded-full px-4 py-1.5 text-sm font-bold {% if active_language == 'en' %}bg-[#25167f] text-white{% else %}bg-white text-slate-600 ring-1 ring-slate-200{% endif %}">EN</a>
+                        <a href="{{ url_for('index', lang='nl') }}" class="rounded-full px-4 py-1.5 text-sm font-bold {% if active_language == 'nl' %}bg-[#25167f] text-white{% else %}bg-white text-slate-600 ring-1 ring-slate-200{% endif %}">NL</a>
+                    </div>
 
-                <label for="model_provider">AI-modelprovider</label>
-                <select id="model_provider" name="model_provider">
-                    {% for provider_key, provider_label in model_provider_labels.items() %}
-                        <option value="{{ provider_key }}" {% if provider_key == form_state.model_provider %}selected{% endif %}>
-                            {{ provider_label }}
-                        </option>
-                    {% endfor %}
-                </select>
+                    <section class="mx-auto max-w-2xl text-left">
+                        <h2 class="brand-serif text-4xl font-semibold text-[#25167f] sm:text-5xl">HvA Feedback AI</h2>
+                        <p class="mt-5 text-base leading-8 text-slate-700">
+                            Welkom bij HvA Feedback AI, je assistent voor het analyseren en verbeteren van learning stories.
+                            Upload je concept of plak je tekst en ontvang gestructureerde feedback,
+                            rubric-gebaseerde beoordeling en concrete verbetersuggesties.
+                        </p>
+                    </section>
 
-                <label for="model_name">Model</label>
-                <select id="model_name" name="model_name" data-current-model="{{ form_state.model_name }}">
-                    {% for model_name in model_options %}
-                        <option value="{{ model_name }}" {% if model_name == form_state.model_name %}selected{% endif %}>
-                            {{ model_name }}
-                        </option>
-                    {% endfor %}
-                </select>
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            <section class="mx-auto mt-8 max-w-2xl space-y-3">
+                                {% for category, message in messages %}
+                                    <div class="rounded-lg border px-4 py-3 text-sm {% if category == 'error' %}border-rose-200 bg-rose-50 text-rose-800{% else %}border-sky-200 bg-sky-50 text-sky-800{% endif %}">{{ message }}</div>
+                                {% endfor %}
+                            </section>
+                        {% endif %}
+                    {% endwith %}
 
-                <!-- Temperatuur- en token-schuiven verwijderd; automatisch geregeld door de backend. -->
-            </aside>
-
-            <main class="panel content-panel">
-                <h2>Learning story uploaden</h2>
-
-                <label for="essay_file">Kies een learning story bestand (txt, pdf, docx)</label>
-                <input id="essay_file" name="essay_file" type="file" accept=".txt,.pdf,.docx">
-
-                <label for="essay_text">Of plak je learning story hier</label>
-                <textarea id="essay_text" name="essay_text" rows="12" placeholder="Plak de inhoud van je learning story hier...">{{ form_state.essay_text }}</textarea>
-
-                <label for="essay_prompt">Learning story opdracht/onderwerp (optioneel)</label>
-                <textarea id="essay_prompt" name="essay_prompt" rows="4" placeholder="Vul de learning story opdracht of het onderwerp in als dat beschikbaar is...">{{ form_state.essay_prompt }}</textarea>
-
-                <button class="primary" type="submit">Analyseer learning story</button>
-
-                {% if results %}
-                    <section class="results">
-                        <h2>Analyseresultaten</h2>
+                    {% if results %}
                         {% set criterion_labels = {
                             'Context & Understanding': 'Context & Begrip',
                             'Learning Goals & Formulation': 'Leerdoelen & Formulering',
                             'Learning Approach & Concrete Actions': 'Leerroute & Concrete Acties',
                             'Substantiation & Evidence Quality': 'Onderbouwing & Bewijs'
                         } %}
+                        <section class="mx-auto mt-10 max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                            <h3 class="brand-serif text-3xl font-semibold text-[#25167f]">Analyseresultaten</h3>
 
-                        <div class="stats-grid">
-                            <article class="card">
-                                <h3>Aantal woorden</h3>
-                                <p>{{ results.quick_stats.word_count }}</p>
-                            </article>
-                            <!-- Leestijd verwijderd op verzoek -->
+                            <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <article class="rounded-xl bg-indigo-50 p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-indigo-700">Aantal woorden</p>
+                                    <p class="mt-2 text-3xl font-bold text-indigo-950">{{ results.quick_stats.word_count }}</p>
+                                </article>
+                                <article class="rounded-xl bg-indigo-50 p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-indigo-700">Eindscore</p>
+                                    <p class="mt-2 text-3xl font-bold text-indigo-950">{{ (results.overall_score / 10)|round(1) }}/10</p>
+                                </article>
+                            </div>
+
+                            <h4 class="mt-8 text-lg font-semibold text-slate-900">Uitgebreide beoordeling</h4>
+                            <div class="mt-3 overflow-hidden rounded-xl border border-slate-200">
+                                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                                    <thead class="bg-slate-50">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left font-semibold text-slate-700">Criteria</th>
+                                            <th class="px-4 py-3 text-left font-semibold text-slate-700">Score</th>
+                                            <th class="px-4 py-3 text-left font-semibold text-slate-700">Max. score</th>
+                                            <th class="px-4 py-3 text-left font-semibold text-slate-700">Weging</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 bg-white">
+                                        {% for item in results.breakdown %}
+                                            <tr>
+                                                <td class="px-4 py-3">{{ criterion_labels.get(item.name, item.name) }}</td>
+                                                <td class="px-4 py-3">{{ (item.score / 2.5)|round(1) }}</td>
+                                                <td class="px-4 py-3">10</td>
+                                                <td class="px-4 py-3">{{ item.weight }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="mt-8 space-y-6">
+                                <div>
+                                    <h4 class="text-lg font-semibold text-slate-900">Ruwe modelfeedback</h4>
+                                    <div class="feedback-box mt-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-700">{{ results.ai_feedback|default('Geen modelfeedback gegenereerd.')|render_feedback }}</div>
+                                </div>
+                            </div>
+
+                        </section>
+                    {% endif %}
+                </div>
+
+                <div class="fixed inset-x-0 bottom-4 z-30">
+                    <div class="mx-auto max-w-4xl px-6 py-5 md:px-10">
+                        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-300/30">
+                            <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                                <div>
+                                    <label for="model_provider" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">AI-modelprovider</label>
+                                    <select id="model_provider" name="model_provider" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none">
+                                        {% for provider_key, provider_label in model_provider_labels.items() %}
+                                            <option value="{{ provider_key }}" {% if provider_key == form_state.model_provider %}selected{% endif %}>{{ provider_label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label for="model_name" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Model</label>
+                                    <select id="model_name" name="model_name" data-current-model="{{ form_state.model_name }}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none">
+                                        {% for model_name in model_options %}
+                                            <option value="{{ model_name }}" {% if model_name == form_state.model_name %}selected{% endif %}>{{ model_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label for="essay_file" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Bestand uploaden</label>
+                                    <input id="essay_file" name="essay_file" type="file" accept=".txt,.pdf,.docx" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-indigo-700">
+                                </div>
+                            </div>
+
+                            <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
+                                <textarea id="essay_text" name="essay_text" rows="2" placeholder="Typ of plak je learning story hier..." class="lg:col-span-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none">{{ form_state.essay_text }}</textarea>
+                                <button type="submit" class="rounded-lg bg-[#25167f] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1c105f]">Analyseer learning story</button>
+                            </div>
                         </div>
-
-                        <div class="stats-grid">
-                            <article class="card score">
-                                <h3>Eindscore</h3>
-                                <p>{{ (results.overall_score / 10)|round(1) }}/10</p>
-                            </article>
-                        </div>
-
-                        <h3>Uitgebreide beoordeling</h3>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Criteria</th>
-                                    <th>Score</th>
-                                    <th>Max. score</th>
-                                    <th>Weging</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in results.breakdown %}
-                                    <tr>
-                                        <td>{{ criterion_labels.get(item.name, item.name) }}</td>
-                                        <td>{{ (item.score / 2.5)|round(1) }}</td>
-                                        <td>10</td>
-                                        <td>{{ item.weight }}</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-
-                        <h3>Uitgebreide feedback</h3>
-                        <h4>Sterke punten</h4>
-                        <div class="feedback-box">{{ results.feedback.strengths|default('Geen specifieke sterke punten gevonden.')|render_feedback }}</div>
-                        <h4>Verbeterpunten</h4>
-                        <div class="feedback-box">{{ results.feedback.improvements|default('Geen specifieke verbeterpunten voorgesteld.')|render_feedback }}</div>
-                        <h4>Suggesties</h4>
-                        <div class="feedback-box">{{ results.feedback.suggestions|default('Geen specifieke suggesties beschikbaar.')|render_feedback }}</div>
-
-                        <h4>Ruwe modelfeedback</h4>
-                        <p><strong>Model:</strong> {{ results.ai_feedback_provider|default('Onbekend') }}</p>
-                        <div class="feedback-box">{{ results.ai_feedback|default('Geen modelfeedback gegenereerd.')|render_feedback }}</div>
-
-                        <h4>Ruwe modelanalyse van inhoud</h4>
-                        <p><strong>Model:</strong> {{ results.ai_content_provider|default('Onbekend') }}</p>
-                        <div class="feedback-box">{{ results.ai_content_analysis|default('Geen modelanalyse gegenereerd.')|render_feedback }}</div>
-
-                        <div class="export-actions">
-                            <a class="secondary" href="{{ url_for('export_pdf') }}">Genereer PDF-rapport</a>
-                            <a class="secondary" href="{{ url_for('export_csv') }}">Exporteer naar CSV</a>
-                        </div>
-                    </section>
-                {% endif %}
-            </main>
-        </form>
-
+                    </div>
+                </div>
+            </form>
+        </main>
     </div>
 
     <script>

@@ -415,10 +415,6 @@ class GradingEngine:
         if complex_word_ratio > 0.15:
             base_score += criterion.max_score * 0.1
 
-        # AI content analysis boost
-        if "content_analysis" in analysis_results:
-            base_score += criterion.max_score * 0.1
-
         return min(base_score, criterion.max_score)
 
     def _grade_learning_story_context(
@@ -966,13 +962,16 @@ The essay has been graded using the {self.rubric_type} rubric with the following
 {scores_summary}
 
 Provide constructive, specific feedback that:
-1. Acknowledges strengths in the writing
-2. Identifies specific areas for improvement
-3. Offers concrete suggestions for enhancement
+1. Summarizes the overall quality of the writing
+2. Identifies the most important issues to address
+3. Offers concrete next steps for revision
 4. Maintains an encouraging and supportive tone
 5. References specific aspects of the rubric criteria
+6. Does not include any numeric score, percentage, or letter grade in the feedback
 
-Return all feedback in {language_name}.
+Return all feedback in {language_name} and format it in Markdown.
+Use clear headings, bullet lists, and short paragraphs.
+Do not wrap the response in code fences or HTML.
 
 Keep feedback professional and educational."""
 

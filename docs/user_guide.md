@@ -151,64 +151,16 @@ You can view it in the sidebar, and all scoring uses Learning Story criteria.
 
 ## Feedback Interpretation
 
-### Feedback Sections
+### Feedback Output
 
-#### Strengths
-- Highlights what the essay does well
-- Acknowledges successful elements
-- Builds confidence and motivation
-
-#### Areas for Improvement
-- Identifies specific weaknesses
-- Provides clear improvement targets
-- Prioritizes most important changes
-
-#### Specific Suggestions
-- Actionable recommendations
-- Concrete steps for improvement
-- Examples and techniques
-
-#### Grammar & Style Issues
-- Detailed mechanical feedback
-- Specific error identification
-- Correction suggestions
+The app presents a single Markdown-formatted feedback response, plus detailed grammar, style, and structure feedback when available.
 
 ### Using Feedback Effectively
 
-1. **Read All Sections**: Review complete feedback before making changes
+1. **Read the full response**: Review the complete Markdown feedback before making changes
 2. **Prioritize**: Focus on high-impact improvements first
 3. **Apply Gradually**: Make changes systematically
 4. **Resubmit**: Test improvements with follow-up analysis
-
-## Export Options
-
-### PDF Reports
-
-Generate comprehensive PDF reports including:
-
-- Complete analysis results
-- Detailed feedback sections
-- Score breakdowns
-- Professional formatting
-
-To generate:
-1. Click "Generate PDF Report"
-2. Wait for processing
-3. Download the generated file
-
-### CSV Data Export
-
-Export analysis data for further processing:
-
-- Numerical scores and metrics
-- Statistical information
-- Comparison data
-- Spreadsheet-compatible format
-
-To export:
-1. Click "Export to CSV"
-2. Save the generated file
-3. Open in Excel or similar software
 
 ## Tips for Best Results
 
@@ -230,7 +182,7 @@ To export:
 1. **Consider Context**: Results should supplement, not replace, human judgment
 2. **Focus on Patterns**: Look for consistent feedback themes
 3. **Use for Learning**: Treat results as learning opportunities
-4. **Seek Balance**: Consider both strengths and areas for improvement
+4. **Seek Balance**: Consider both positive observations and revision priorities
 
 ## Troubleshooting
 
@@ -280,7 +232,7 @@ If you encounter persistent issues:
 ### For Students
 
 1. **Use as Learning Tool**: Focus on improvement, not just scores
-2. **Read Feedback Carefully**: Understand suggestions before implementing
+2. **Read Feedback Carefully**: Understand the guidance before implementing
 3. **Practice Regularly**: Regular use improves writing skills
 4. **Combine with Human Feedback**: Use alongside teacher/peer review
 

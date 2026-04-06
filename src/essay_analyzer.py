@@ -11,7 +11,6 @@ import textstat
 import logging
 from typing import Dict, List, Optional, Any
 from nltk.corpus import stopwords
-from langchain_core.messages import HumanMessage, SystemMessage
 from textblob import TextBlob
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import spacy
@@ -276,12 +275,12 @@ class EssayAnalyzer:
         if not essay_text or not essay_text.strip():
             raise ValueError("Learning story text cannot be empty.")
 
-        active_language = self._detect_language(essay_text)
+        detected_language = self._detect_language(essay_text)
 
         results = {
             "basic_stats": self._get_basic_statistics(essay_text),
             "readability": self._analyze_readability(essay_text),
-            "structure": self._analyze_structure(essay_text, active_language),
+            "structure": self._analyze_structure(essay_text, detected_language),
             "vocabulary": self._analyze_vocabulary(essay_text),
         }
 
@@ -297,15 +296,11 @@ class EssayAnalyzer:
         retrieval_context = self._gather_retrieval_context(essay_text, prompt)
         retrieval_context = self._format_retrieval_blocks(retrieval_context)
 
-        # AI-powered content analysis
-        results["content_analysis"] = self._ai_content_analysis(
-            essay_text, prompt, active_language, retrieval_context
-        )
         results["learning_story_signals"] = self._extract_learning_story_signals(
-            essay_text, active_language
+            essay_text, detected_language
         )
         results["retrieval_context"] = retrieval_context
-        results["language"] = active_language
+        results["language"] = detected_language
 
         return results
 
@@ -691,77 +686,6 @@ class EssayAnalyzer:
             "link_mentions": link_mentions,
             "has_minimum_sources": resource_mentions >= 2 or link_mentions >= 1,
         }
-
-    def _ai_content_analysis(
-        self,
-        text: str,
-        prompt: Optional[str] = None,
-        language: str = "en",
-        retrieval_context: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, str]:
-        """Use AI to analyze content quality and relevance, grounded in retrieval context."""
-        try:
-            language_name = "Dutch" if language == "nl" else "English"
-
-            vector_block = ""
-            if retrieval_context:
-                vector_block = retrieval_context.get("vector_block", "")
-
-            system_message = f"""You are an expert evaluator of HvA Learning Stories. Your role is to assess how well students structure their learning journey to bridge gaps between current skills and required competencies.
-
-LEARNING STORY STRUCTURE YOU ARE EVALUATING:
-1. **Context (Situatie) Pillar**: Student identifies specific problem, role, stakeholders, and deliverable requirements derived from a user story.
-   - Look for: Clear problem statement, defined role, identified stakeholders, explicit deliverable.
-   - Red flags: Vague context, missing stakeholder perspective, unclear connection to user story.
-
-2. **Learning Goals Pillar**: Student formulates 2-3 learning goals using the format 'Als student wil ik leren [X] zodat ik [Y] kan bereiken.' Each goal has measurable success criteria.
-   - Look for: Specific, measurable goals tied to the context; success criteria are clear and verifiable.
-   - Red flags: Generic goals, missing 'zodat' rationale, no success criteria defined.
-
-3. **Learning Approach Pillar**: Student designs concrete, actionable steps including planned experiments/research, chosen resources, and realistic timelines.
-   - Look for: Step-by-step plan, specific resources (links, books, videos, mentors), evidence of resource evaluation, time estimates.
-   - Red flags: Vague 'I'll learn...' without concrete steps, no resource references, unrealistic deadlines.
-
-4. **Substantiation & Evidence Pillar**: Student cites sources, includes artifacts (screenshots, links, code, reflections), and reflects on actual learning outcomes.
-   - Look for: Proper source attribution, actual evidence/artifacts, reflection on what worked/didn't, connections to success criteria.
-   - Red flags: Unsupported claims, no artifacts, missing reflection, broken links.
-
-INTERNAL EXEMPLARS (highest priority):
-{vector_block or 'None available; use above standards as baseline.'}
-
-EVALUATION APPROACH:
-- Focus on **learning strategy quality**, not grammar or formatting.
-- Give pragmatic feedback: highlight the strongest pillar and the most improvable pillar.
-- Flag missing elements and suggest concrete ways to strengthen each pillar.
-- Reference specific sentences/sections from the submission.
-- Mention relevant resources (knowledge base, best practices) when appropriate.
-
-Return full analysis in {language_name}. Be encouraging but honest about gaps."""
-
-            user_message = f"Essay to analyze:\n\n{text}"
-
-            if prompt:
-                user_message = f"Essay prompt: {prompt}\n\n{user_message}"
-
-            messages = [
-                SystemMessage(content=system_message),
-                HumanMessage(content=user_message),
-            ]
-
-            response = self.run_chat(messages)
-
-            return {
-                "ai_analysis": response.content,
-                "analysis_provider": f"{self.model_provider}_{self.model_name}",
-                "workspace_attribution": "HvA Feedback Agent",
-            }
-
-        except Exception as e:
-            return {
-                "ai_analysis": f"Error in AI analysis: {str(e)}",
-                "analysis_provider": "error",
-                "workspace_attribution": "HvA Feedback Agent",
-            }
 
     def _check_introduction_patterns(self, first_paragraph: str, language: str = "en") -> bool:
         """Check if the first paragraph has introduction characteristics."""
