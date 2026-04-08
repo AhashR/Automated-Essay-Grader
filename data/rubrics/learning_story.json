@@ -1,9 +1,6 @@
 {
     "name": "Learning Story Rubric - HvA HBO ICT",
     "description": "Evaluation rubric for Learning Stories based on HvA HBO ICT methodology. Assesses how well students formulate context, learning goals, learning approach, and sources for achieving learning stories.",
-    "version": "1.0",
-    "created_by": "HvA HBO ICT",
-    "workspace": "HvA HBO ICT - Automated learning story Grader",
     "criteria": {
         "context": {
             "name": "Context & Understanding",

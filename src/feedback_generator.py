@@ -178,33 +178,30 @@ class FeedbackGenerator:
                 )
 
             hva_context = ""
-            if rubric_used == "learning_story":
-                expectations = []
-                if rubric_details:
-                    expectations = (
-                        rubric_details.get("hva_guidelines", {}).get("expectations", [])
-                    )
-
-                expectation_snippet = "; ".join(expectations[:3]) if expectations else "Focus op context, leerdoelen, aanpak en bewijs volgens HvA Learning Story."
-
+            if rubric_used == "learning_story" and rubric_details:
+                # Format the complete rubric for the active AI model
+                full_rubric_text = self._format_rubric_for_model(rubric_details)
+                
                 signal_summary = ""
                 if signals:
                     signal_summary = (
-                        f"Detected signals ��� context: {signals.get('context_mentions', 0)}, "
-                        f"goals: {signals.get('goal_statements', 0)}, actions: {signals.get('actions_count', 0)}, "
-                        f"sources: {signals.get('resource_mentions', 0)}, evidence: {signals.get('evidence_mentions', 0)}."
+                        f"\n\nDETECTED SIGNALS IN SUBMISSION: "
+                        f"context mentions: {signals.get('context_mentions', 0)}, "
+                        f"goal statements: {signals.get('goal_statements', 0)}, "
+                        f"actions/concrete steps: {signals.get('actions_count', 0)}, "
+                        f"resource/source mentions: {signals.get('resource_mentions', 0)}, "
+                        f"evidence/artefact mentions: {signals.get('evidence_mentions', 0)}."
                     )
 
                 hva_context = (
-                    "Use the HvA Learning Story rubric. Prioritize content over generic writing advice. "
-                    "Focus on four pillars: (1) context/situatie/rol + deliverable/stakeholders, "
-                    "(2) 2-3 learning goals formulated as 'Als student wil ik leren ... zodat ...' with success criteria, "
-                    "(3) concrete learning approach with planned actions/experiments, resources and timeboxing, "
-                    "(4) substantiation: sources, evidence/artefacts, reflection/feedback. "
-                    f"HvA expectations: {expectation_snippet} "
-                    f"{signal_summary}"
-                    " Use these as guidelines���not hard restrictions���so you can adapt to the student's specific learning story. "
+                    "Use the complete HvA Learning Story rubric provided below. "
+                    "Prioritize content and learning strategy over generic writing advice. "
+                    "Use the rubric criteria, performance levels, and guidelines as your primary reference. "
                     f"{retrieval_text}"
+                    f"\n{full_rubric_text}"
+                    f"{signal_summary}"
+                    "\n\nGuidance: Use these rubric criteria as guidelines helping you evaluate the submission comprehensively. "
+                    "Adapt your feedback to the student's specific learning story; focus on the most impactful improvements."
                 )
 
             system_message = f"""You are an expert learning-focused instructor providing detailed, constructive feedback on Learning Story submissions at HvA (Amsterdam University of Applied Sciences).
@@ -377,6 +374,67 @@ Powered by the HvA Feedback Agent system."""
     def _ls_text(self, language: str, en_text: str, nl_text: str) -> str:
         """Return text in the requested language."""
         return nl_text if language == "nl" else en_text
+
+    def _format_rubric_for_model(self, rubric_details: Dict[str, Any]) -> str:
+        """Format the entire rubric JSON as a readable text block for the AI model."""
+        if not rubric_details:
+            return ""
+        
+        rubric_text = f"""
+COMPLETE HVA LEARNING STORY RUBRIC:
+
+Name: {rubric_details.get('name', 'N/A')}
+Description: {rubric_details.get('description', 'N/A')}
+Attribution: {rubric_details.get('attribution', 'N/A')}
+
+GRADING CRITERIA:
+
+"""
+        
+        criteria = rubric_details.get('criteria', {})
+        for criterion_key, criterion_data in criteria.items():
+            rubric_text += f"\n### {criterion_data.get('name', criterion_key)}\n"
+            rubric_text += f"Weight: {criterion_data.get('weight', 0):.0%} | Max Score: {criterion_data.get('max_score', 0)}\n"
+            rubric_text += f"Description: {criterion_data.get('description', 'N/A')}\n\n"
+            rubric_text += "Performance Levels:\n"
+            
+            levels = criterion_data.get('levels', {})
+            for level_key, level_data in levels.items():
+                score_range = level_data.get('score_range', [0, 0])
+                rubric_text += f"- **{level_key.upper()}** ({score_range[0]}-{score_range[1]} points): {level_data.get('description', 'N/A')}\n"
+            rubric_text += "\n"
+        
+        # Add HvA Guidelines
+        hva_guidelines = rubric_details.get('hva_guidelines', {})
+        if hva_guidelines:
+            rubric_text += "\nHVA GUIDELINES:\n\n"
+            
+            expectations = hva_guidelines.get('expectations', [])
+            if expectations:
+                rubric_text += "**Expectations:**\n"
+                for i, exp in enumerate(expectations, 1):
+                    rubric_text += f"{i}. {exp}\n"
+                rubric_text += "\n"
+            
+            structure_hints = hva_guidelines.get('structure_hints', [])
+            if structure_hints:
+                rubric_text += "**Suggested Structure:**\n"
+                for hint in structure_hints:
+                    rubric_text += f"- {hint}\n"
+                rubric_text += "\n"
+        
+        # Add Learning Story Components
+        components = rubric_details.get('learning_story_components', {})
+        if components:
+            rubric_text += "\nLEARNING STORY COMPONENTS:\n"
+            for component_key, component_desc in components.items():
+                if isinstance(component_desc, list):
+                    rubric_text += f"- **{component_key}**: {', '.join(component_desc)}\n"
+                else:
+                    rubric_text += f"- **{component_key}**: {component_desc}\n"
+            rubric_text += "\n"
+        
+        return rubric_text
 
     def _identify_learning_story_strengths(
         self, analysis_results: Dict[str, Any], grade_results: Dict[str, Any], language: str
