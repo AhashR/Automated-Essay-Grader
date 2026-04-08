@@ -2,7 +2,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import markdown
 from dotenv import load_dotenv
@@ -107,8 +107,6 @@ def _render_feedback_markdown(text: str) -> Markup:
     if not text:
         return Markup("")
 
-    # Escape raw HTML first, then render markdown so model formatting is preserved
-    # while preventing injected HTML/script from being interpreted.
     safe_text = str(escape(text))
     rendered = markdown.markdown(
         safe_text,
