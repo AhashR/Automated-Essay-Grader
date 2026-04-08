@@ -72,8 +72,8 @@ class GradingEngine:
         return aliases.get(normalized, normalized)
 
     def _load_rubric_from_file(self, rubric_type: str) -> Optional[Dict[str, GradingCriteria]]:
-        """Load rubric definitions from JSON files in data/rubrics when available."""
-        rubrics_dir = Path(__file__).resolve().parent.parent / "data" / "rubrics"
+        """Load rubric definitions from JSON files in rubrics directory when available."""
+        rubrics_dir = Path(__file__).resolve().parent.parent / "rubrics"
         candidate_files = [
             rubrics_dir / f"{rubric_type}.json",
             rubrics_dir / f"{rubric_type}_rubric.json",

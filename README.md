@@ -55,15 +55,6 @@ python app.py
 python -m flask --app app.py --debug run
 ```
 
-## Context grounding
-
-- Internal examples: stored in `data/examples/learning_stories.json` and searched with TF-IDF; edit or replace with your own HvA learning stories.
-- Custom location: point `LEARNING_STORY_VECTOR_PATH` to a different JSON file with example learning stories.
-
-## How to Contribute
-
-We welcome contributions from the community! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines on how to contribute to this project.
-
 ## Project Structure
 
 ```

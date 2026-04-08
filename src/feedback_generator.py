@@ -362,7 +362,7 @@ Powered by the HvA Feedback Agent system."""
         if self._learning_story_rubric_details is not None:
             return self._learning_story_rubric_details
 
-        rubric_path = Path(__file__).resolve().parent.parent / "data" / "rubrics" / "learning_story.json"
+        rubric_path = Path(__file__).resolve().parent.parent / "rubrics" / "learning_story.json"
         try:
             with rubric_path.open("r", encoding="utf-8") as handle:
                 self._learning_story_rubric_details = json.load(handle)
