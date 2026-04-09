@@ -17,6 +17,7 @@ from essay_analyzer import EssayAnalyzer  # noqa: E402
 from feedback_generator import FeedbackGenerator  # noqa: E402
 from grading_engine import GradingEngine  # noqa: E402
 from retrieval import LearningStoryRetriever  # noqa: E402
+from story_quality_model import StoryQualityModel  # noqa: E402
 from utils import load_document, validate_file  # noqa: E402
 
 load_dotenv()
@@ -62,8 +63,15 @@ VECTOR_DATA_PATH = Path(
         Path(__file__).resolve().parent / "data" / "examples" / "learning_stories.json",
     )
 )
+QUALITY_MODEL_PATH = Path(
+    os.getenv(
+        "LEARNING_STORY_QUALITY_MODEL_PATH",
+        Path(__file__).resolve().parent / "models" / "learning_story_good_bad.joblib",
+    )
+)
 
 LEARNING_STORY_RETRIEVER = LearningStoryRetriever(data_path=VECTOR_DATA_PATH)
+LEARNING_STORY_QUALITY_MODEL = StoryQualityModel(QUALITY_MODEL_PATH)
 RECENT_ANALYSIS_CACHE: Dict[str, Dict[str, Any]] = {}
 PROCESS_BOOT_ID = uuid4().hex
 
@@ -265,6 +273,7 @@ def index():
                 rubric_type=RUBRIC_TYPE,
                 analyzer=analyzer,
                 language=form_state["feedback_agent_language"],
+                quality_model=LEARNING_STORY_QUALITY_MODEL,
             )
 
             feedback_generator = FeedbackGenerator(
@@ -305,9 +314,12 @@ def index():
             results = {
                 "quick_stats": quick_stats,
                 "overall_score": grade_results.get("overall_score", 0),
+                "base_overall_score": grade_results.get("base_overall_score", 0),
+                "score_adjustment": grade_results.get("score_adjustment", 0),
                 "letter_grade": grade_results.get("letter_grade", "N/A"),
                 "breakdown": breakdown_values,
                 "feedback": feedback,
+                "quality_assessment": grade_results.get("quality_assessment", {}),
                 "detected_language": LANGUAGE_LABELS.get(
                     analysis_results.get("language", "en"), "English"
                 ),

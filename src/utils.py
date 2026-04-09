@@ -61,7 +61,7 @@ def _peek_upload_bytes(uploaded_file, byte_count: int = 8) -> bytes:
 
 def _detect_file_extension(uploaded_file) -> str:
     """Detect file extension from metadata and content signatures."""
-    allowed_extensions = {"txt", "pdf", "docx", "doc"}
+    allowed_extensions = {"txt", "md", "markdown", "pdf", "docx", "doc"}
 
     filename_candidates = []
     for attr_name in ("filename", "name"):
@@ -87,6 +87,8 @@ def _detect_file_extension(uploaded_file) -> str:
 
     mime_to_extension = {
         "text/plain": "txt",
+        "text/markdown": "md",
+        "text/x-markdown": "md",
         "application/pdf": "pdf",
         "application/msword": "doc",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
@@ -136,7 +138,7 @@ def load_document(uploaded_file) -> str:
     try:
         file_extension = _detect_file_extension(uploaded_file)
 
-        if file_extension == "txt":
+        if file_extension in {"txt", "md", "markdown"}:
             return _load_text_file(uploaded_file)
         elif file_extension == "pdf":
             return _load_pdf_file(uploaded_file)
@@ -262,7 +264,7 @@ def validate_file(uploaded_file, return_error: bool = False):
         )
 
     # Check file extension (with metadata and signature fallback)
-    allowed_extensions = ["txt", "pdf", "docx", "doc"]
+    allowed_extensions = ["txt", "md", "markdown", "pdf", "docx", "doc"]
     file_extension = _detect_file_extension(uploaded_file)
 
     if file_extension not in allowed_extensions:

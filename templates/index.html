@@ -186,6 +186,26 @@
                                 </article>
                             </div>
 
+                            {% set qa = results.quality_assessment or {} %}
+                            <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                                <p class="font-semibold text-slate-900">Learned quality alignment</p>
+                                <p class="mt-1">
+                                    Base score: <span class="font-semibold">{{ (results.base_overall_score / 10)|round(1) }}/10</span>
+                                    | Model adjustment: <span class="font-semibold">{{ (results.score_adjustment / 10)|round(1) }}/10</span>
+                                    | Final score: <span class="font-semibold">{{ (results.overall_score / 10)|round(1) }}/10</span>
+                                </p>
+                                {% if qa.available %}
+                                    <p class="mt-1">
+                                        Classifier prediction: <span class="font-semibold">{{ qa.label|upper }}</span>
+                                        {% if qa.confidence is not none %}
+                                            (confidence {{ (qa.confidence * 100)|round(1) }}%)
+                                        {% endif %}
+                                    </p>
+                                {% else %}
+                                    <p class="mt-1 text-slate-500">Classifier unavailable for this run.</p>
+                                {% endif %}
+                            </div>
+
                             <h4 class="mt-8 text-lg font-semibold text-slate-900">Breakdown per criterion</h4>
                             <div class="mt-3 overflow-hidden rounded-xl border border-slate-200">
                                 <table class="min-w-full divide-y divide-slate-200 text-sm">
@@ -245,7 +265,7 @@
 
                                 <div>
                                     <label for="essay_file" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Upload File</label>
-                                    <input id="essay_file" name="essay_file" type="file" accept=".txt,.pdf,.docx" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-indigo-700">
+                                    <input id="essay_file" name="essay_file" type="file" accept=".txt,.md,.markdown,.pdf,.docx" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-indigo-700">
                                 </div>
                             </div>
 

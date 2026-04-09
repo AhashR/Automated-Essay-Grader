@@ -18,11 +18,16 @@ class GradingEngine:
     """HvA-only grading engine for Learning Story submissions."""
 
     def __init__(
-        self, rubric_type: str = "learning_story", analyzer=None, language: str = "en"
+        self,
+        rubric_type: str = "learning_story",
+        analyzer=None,
+        language: str = "en",
+        quality_model=None,
     ):
         self.rubric_type = self._normalize_rubric_type(rubric_type)
         self.analyzer = analyzer
         self.language = self._normalize_language(language)
+        self.quality_model = quality_model
         self.rubric, self.rubric_source, self.grade_scale = self._load_rubric(
             self.rubric_type
         )
@@ -122,11 +127,16 @@ class GradingEngine:
             ),
         }
 
-        overall_score = self._calculate_overall_score(criteria_scores)
+        base_overall_score = self._calculate_overall_score(criteria_scores)
+        quality_assessment = self._get_quality_assessment(essay_text)
+        score_adjustment = self._compute_score_adjustment(quality_assessment)
+        overall_score = min(100.0, max(0.0, base_overall_score + score_adjustment))
         letter_grade = self._get_letter_grade(overall_score)
 
         return {
             "overall_score": round(overall_score, 1),
+            "base_overall_score": round(base_overall_score, 1),
+            "score_adjustment": round(score_adjustment, 1),
             "letter_grade": letter_grade,
             "criteria_scores": {k: round(v, 1) for k, v in criteria_scores.items()},
             "content_score": criteria_scores.get("context", 0),
@@ -135,14 +145,53 @@ class GradingEngine:
             "style_score": criteria_scores.get("substantiation", 0),
             "detailed_feedback": self._generate_detailed_feedback(
                 criteria_scores,
+                quality_assessment,
+                score_adjustment,
                 language=active_language,
             ),
             "rubric_used": self.rubric_type,
             "rubric_source": self.rubric_source,
+            "quality_assessment": quality_assessment,
             "language": active_language,
             "grading_breakdown": self._get_grading_breakdown(criteria_scores),
             "workspace_attribution": "HvA Feedback Agent",
         }
+
+    def _get_quality_assessment(self, essay_text: str) -> Dict[str, Any]:
+        if self.quality_model is None:
+            return {
+                "available": False,
+                "label": None,
+                "confidence": None,
+                "reason": "quality_model_not_configured",
+            }
+
+        prediction = self.quality_model.predict(essay_text)
+        prediction.setdefault("reason", "ok" if prediction.get("available") else "unavailable")
+        return prediction
+
+    def _compute_score_adjustment(self, quality_assessment: Dict[str, Any]) -> float:
+        """Apply conservative classifier-based adjustment to improve score fidelity."""
+        if not quality_assessment.get("available"):
+            return 0.0
+
+        label = str(quality_assessment.get("label") or "").lower()
+        confidence = quality_assessment.get("confidence")
+
+        if not isinstance(confidence, (int, float)):
+            return 0.0
+
+        if confidence < 0.60:
+            return 0.0
+
+        # Scale from [0.60, 1.00] to [0.0, 1.0] to reduce unstable low-confidence impact.
+        scaled = min(1.0, max(0.0, (float(confidence) - 0.60) / 0.40))
+
+        if label == "good":
+            return 8.0 * scaled
+        if label == "bad":
+            return -12.0 * scaled
+        return 0.0
 
     def _score_context(self, signals: Dict[str, Any], criterion: GradingCriteria) -> float:
         base = criterion.max_score * 0.25
@@ -260,22 +309,40 @@ class GradingEngine:
         return "F"
 
     def _generate_detailed_feedback(
-        self, criteria_scores: Dict[str, float], language: str = "en"
+        self,
+        criteria_scores: Dict[str, float],
+        quality_assessment: Optional[Dict[str, Any]] = None,
+        score_adjustment: float = 0.0,
+        language: str = "en",
     ) -> str:
         weakest = min(criteria_scores.items(), key=lambda item: item[1])[0]
         weakest_name = self.rubric[weakest].name
+        quality_label = str((quality_assessment or {}).get("label") or "").lower()
+        quality_confidence = (quality_assessment or {}).get("confidence")
+
+        quality_line_en = ""
+        quality_line_nl = ""
+        if isinstance(quality_confidence, (int, float)) and quality_label in {"good", "bad"}:
+            quality_line_en = (
+                f" Learned pattern signal suggests '{quality_label}' quality "
+                f"(confidence {quality_confidence:.2f}, score adjustment {score_adjustment:+.1f})."
+            )
+            quality_line_nl = (
+                f" Geleerd patroon-signaal duidt op '{quality_label}' kwaliteit "
+                f"(betrouwbaarheid {quality_confidence:.2f}, scoreaanpassing {score_adjustment:+.1f})."
+            )
 
         if language == "nl":
             return (
                 f"Focus in de volgende versie vooral op '{weakest_name}'. "
                 "Voeg meer concrete voorbeelden, bronnen en bewijs toe zodat je "
-                "learning story sterker onderbouwd is."
+                f"learning story sterker onderbouwd is.{quality_line_nl}"
             )
 
         return (
             f"Focus your next revision primarily on '{weakest_name}'. "
             "Add more concrete examples, sources, and evidence so your learning "
-            "story is better substantiated."
+            f"story is better substantiated.{quality_line_en}"
         )
 
     def _get_grading_breakdown(

@@ -115,6 +115,16 @@ class FeedbackGenerator:
                     f"{vector_block or 'None retrieved'}\n"
                 )
 
+            quality_assessment = grade_results.get("quality_assessment", {}) or {}
+            quality_text = ""
+            if quality_assessment.get("available"):
+                quality_text = (
+                    "\nClassifier signal from local good/bad learning stories: "
+                    f"label={quality_assessment.get('label')}, "
+                    f"confidence={quality_assessment.get('confidence')}"
+                    ". Use this as a secondary calibration signal, not as sole evidence."
+                )
+
             hva_context = ""
             if rubric_used == "learning_story" and rubric_details:
                 # Format the complete rubric for the active AI model
@@ -138,6 +148,7 @@ class FeedbackGenerator:
                     f"{retrieval_text}"
                     f"\n{full_rubric_text}"
                     f"{signal_summary}"
+                    f"{quality_text}"
                     "\n\nGuidance: Use these rubric criteria as guidelines helping you evaluate the submission comprehensively. "
                     "Adapt your feedback to the student's specific learning story; focus on the most impactful improvements."
                 )
