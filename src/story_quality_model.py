@@ -43,6 +43,9 @@ class StoryQualityModel:
                 "available": self.available,
                 "label": None,
                 "confidence": None,
+                "good_probability": None,
+                "bad_probability": None,
+                "probabilities": {},
                 "error": "Empty text",
             }
 
@@ -51,21 +54,39 @@ class StoryQualityModel:
                 "available": False,
                 "label": None,
                 "confidence": None,
+                "good_probability": None,
+                "bad_probability": None,
+                "probabilities": {},
                 "error": self.error or "Model unavailable",
             }
 
         try:
             label = str(self.pipeline.predict([text])[0])
             confidence = None
+            probabilities: Dict[str, float] = {}
+            good_probability = None
+            bad_probability = None
 
             if hasattr(self.pipeline, "predict_proba"):
                 probs = self.pipeline.predict_proba([text])[0]
                 confidence = float(max(probs))
 
+                classes = getattr(self.pipeline, "classes_", None)
+                if classes is not None:
+                    probabilities = {
+                        str(class_name): float(probability)
+                        for class_name, probability in zip(classes, probs)
+                    }
+                    good_probability = probabilities.get("good")
+                    bad_probability = probabilities.get("bad")
+
             return {
                 "available": True,
                 "label": label,
                 "confidence": confidence,
+                "good_probability": good_probability,
+                "bad_probability": bad_probability,
+                "probabilities": probabilities,
                 "error": None,
                 "model_path": str(self.model_path),
             }
@@ -74,6 +95,9 @@ class StoryQualityModel:
                 "available": False,
                 "label": None,
                 "confidence": None,
+                "good_probability": None,
+                "bad_probability": None,
+                "probabilities": {},
                 "error": str(exc),
                 "model_path": str(self.model_path),
             }

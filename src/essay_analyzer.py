@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Optional
 import nltk
 from nltk.corpus import stopwords
 
+from src.language_utils import normalize_language
+
 logger = logging.getLogger(__name__)
 
 # Download required NLTK data
@@ -35,33 +37,20 @@ class EssayAnalyzer:
         language: str = "en",
         retriever: Optional[Any] = None,
         retrieval_top_k: int = 3,
+        retrieval_min_score: float = 0.08,
     ):
         self.model_provider = model_provider
         self.model_name = model_name
         self.temperature = temperature
         self.max_tokens = max_tokens
-        self.language = self._normalize_language(language)
+        self.language = normalize_language(language)
         self.retriever = retriever
         self.retrieval_top_k = retrieval_top_k
+        self.retrieval_min_score = retrieval_min_score
         self.english_stopwords = set(stopwords.words("english"))
         self.dutch_stopwords = set(stopwords.words("dutch"))
 
         self._initialize_model()
-
-    def _normalize_language(self, language: str) -> str:
-        """Normalize language inputs to supported codes."""
-        normalized = (language or "en").strip().lower()
-        aliases = {
-            "english": "en",
-            "eng": "en",
-            "nederlands": "nl",
-            "dutch": "nl",
-            "nl_nl": "nl",
-            "en_us": "en",
-            "en_gb": "en",
-        }
-        normalized = aliases.get(normalized, normalized)
-        return normalized if normalized in {"en", "nl"} else "en"
 
     def _detect_language(self, text: str) -> str:
         """Detect whether story text is primarily English or Dutch."""
@@ -98,7 +87,7 @@ class EssayAnalyzer:
         return "nl" if dutch_hits > english_hits else "en"
 
     def _gather_retrieval_context(
-        self, essay_text: str, prompt: Optional[str]
+        self, essay_text: str, prompt: Optional[str], language: str
     ) -> Dict[str, Any]:
         """Pull top matches from the internal vector store."""
         query_text = f"{prompt or ''}\n\n{essay_text}" if prompt else essay_text
@@ -107,7 +96,10 @@ class EssayAnalyzer:
         if self.retriever:
             try:
                 context["vector_hits"] = self.retriever.search(
-                    query_text, top_k=self.retrieval_top_k
+                    query_text,
+                    top_k=self.retrieval_top_k,
+                    language=language,
+                    min_score=self.retrieval_min_score,
                 )
             except Exception as exc:
                 context["notes"].append(f"Vector search unavailable: {exc}")
@@ -237,19 +229,29 @@ class EssayAnalyzer:
 
         _ = enable_sentiment  # Backward-compatible flag not used in HvA flow.
         detected_language = self._detect_language(essay_text)
-        active_language = self._normalize_language(language or detected_language)
+        active_language = normalize_language(language or detected_language)
         basic_stats = self._get_basic_statistics(essay_text)
+        structured_sections = self._extract_structured_sections(
+            essay_text, detected_language
+        )
         learning_signals = self._extract_learning_story_signals(
-            essay_text, active_language
+            essay_text,
+            detected_language,
+            sections=structured_sections,
         )
 
         results: Dict[str, Any] = {
             "basic_stats": basic_stats,
             "readability": self._analyze_readability(essay_text, basic_stats),
-            "structure": self._analyze_structure(essay_text, learning_signals),
+            "structure": self._analyze_structure(
+                essay_text,
+                learning_signals,
+                structured_sections=structured_sections,
+            ),
             "vocabulary": self._analyze_vocabulary(essay_text),
             "learning_story_signals": learning_signals,
             "language": active_language,
+            "detected_text_language": detected_language,
         }
 
         if enable_grammar:
@@ -262,7 +264,11 @@ class EssayAnalyzer:
                 essay_text, learning_signals, active_language
             )
 
-        retrieval_context = self._gather_retrieval_context(essay_text, prompt)
+        retrieval_context = self._gather_retrieval_context(
+            essay_text,
+            prompt,
+            language=detected_language,
+        )
         results["retrieval_context"] = self._format_retrieval_blocks(retrieval_context)
 
         return results
@@ -300,7 +306,10 @@ class EssayAnalyzer:
         }
 
     def _analyze_structure(
-        self, text: str, signals: Optional[Dict[str, Any]] = None
+        self,
+        text: str,
+        signals: Optional[Dict[str, Any]] = None,
+        structured_sections: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Analyze structure in HvA terms: context-goals-approach-evidence coverage."""
         story_signals = signals or self._extract_learning_story_signals(
@@ -319,6 +328,9 @@ class EssayAnalyzer:
         )
 
         coverage_count = sum([has_context, has_goals, has_approach, has_evidence])
+        sections = structured_sections or self._extract_structured_sections(
+            text, self._detect_language(text)
+        )
 
         return {
             "paragraph_count": len(paragraphs),
@@ -334,6 +346,67 @@ class EssayAnalyzer:
             "has_clear_conclusion": story_signals.get("reflection_mentions", 0) > 0,
             "transition_word_count": story_signals.get("planning_mentions", 0),
             "learning_story_component_coverage": coverage_count,
+            "section_coverage_count": sections.get("coverage_count", 0),
+            "missing_sections": sections.get("missing_sections", []),
+            "sections_detected": sections.get("sections_detected", {}),
+        }
+
+    def _extract_structured_sections(self, text: str, language: str) -> Dict[str, Any]:
+        """Detect rubric sections using heading patterns and paragraph cues."""
+        active_language = normalize_language(language)
+        section_patterns = {
+            "en": {
+                "context": ["context", "background", "situation"],
+                "learning_goals": ["learning goals", "goals", "objective"],
+                "learning_approach": ["approach", "plan", "actions", "method"],
+                "substantiation": ["evidence", "sources", "substantiation"],
+                "reflection": ["reflection", "lessons learned", "next steps"],
+            },
+            "nl": {
+                "context": ["context", "situatie", "achtergrond"],
+                "learning_goals": ["leerdoelen", "doelen", "leerdoel"],
+                "learning_approach": ["aanpak", "plan", "acties", "methode"],
+                "substantiation": ["onderbouwing", "bewijs", "bronnen"],
+                "reflection": ["reflectie", "terugblik", "vervolgstap"],
+            },
+        }
+        active_patterns = section_patterns.get(active_language, section_patterns["en"])
+
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        headings = [line.lower().strip("#:- ") for line in lines if len(line) <= 90]
+        paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+
+        sections_detected: Dict[str, bool] = {}
+        paragraph_matches: Dict[str, int] = {}
+
+        for section, patterns in active_patterns.items():
+            heading_match = any(
+                any(re.search(rf"\b{re.escape(pattern)}\b", heading) for pattern in patterns)
+                for heading in headings
+            )
+
+            paragraph_match = sum(
+                1
+                for paragraph in paragraphs
+                if any(
+                    re.search(rf"\b{re.escape(pattern)}\b", paragraph.lower())
+                    for pattern in patterns
+                )
+            )
+
+            sections_detected[section] = bool(heading_match or paragraph_match > 0)
+            paragraph_matches[section] = paragraph_match
+
+        coverage_count = sum(1 for found in sections_detected.values() if found)
+        missing_sections = [
+            section for section, found in sections_detected.items() if not found
+        ]
+
+        return {
+            "coverage_count": coverage_count,
+            "missing_sections": missing_sections,
+            "sections_detected": sections_detected,
+            "section_paragraph_matches": paragraph_matches,
         }
 
     def _analyze_vocabulary(self, text: str) -> Dict[str, Any]:
@@ -362,7 +435,7 @@ class EssayAnalyzer:
         language: Optional[str] = None,
     ) -> Dict[str, Any]:
         """HvA-oriented clarity checks (not full grammar scoring)."""
-        active_language = self._normalize_language(language or self._detect_language(text))
+        active_language = normalize_language(language or self._detect_language(text))
         story_signals = signals or self._extract_learning_story_signals(
             text, active_language
         )
@@ -428,7 +501,7 @@ class EssayAnalyzer:
         language: Optional[str] = None,
     ) -> Dict[str, Any]:
         """HvA-oriented style analysis focused on actionability and specificity."""
-        active_language = self._normalize_language(language or self._detect_language(text))
+        active_language = normalize_language(language or self._detect_language(text))
         story_signals = signals or self._extract_learning_story_signals(
             text, active_language
         )
@@ -480,10 +553,13 @@ class EssayAnalyzer:
         }
 
     def _extract_learning_story_signals(
-        self, text: str, language: str = "en"
+        self,
+        text: str,
+        language: str = "en",
+        sections: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Extract HvA learning story signals (context, goals, plan, evidence)."""
-        active_language = self._normalize_language(language)
+        active_language = normalize_language(language)
         lowered = text.lower()
 
         def _count_keywords(keywords: List[str]) -> int:
@@ -789,6 +865,8 @@ class EssayAnalyzer:
         planning_mentions = _count_keywords(active_keyword_sets["planning"])
 
         link_mentions = len(re.findall(r"https?://", text, flags=re.IGNORECASE))
+        section_data = sections or self._extract_structured_sections(text, active_language)
+        sections_detected = section_data.get("sections_detected", {})
 
         return {
             "goal_statements": goal_statements,
@@ -802,5 +880,8 @@ class EssayAnalyzer:
             "reflection_mentions": reflection_mentions,
             "planning_mentions": planning_mentions,
             "link_mentions": link_mentions,
+            "section_coverage_count": section_data.get("coverage_count", 0),
+            "missing_core_sections": section_data.get("missing_sections", []),
+            "sections_detected": sections_detected,
             "has_minimum_sources": resource_mentions >= 2 or link_mentions >= 1,
         }

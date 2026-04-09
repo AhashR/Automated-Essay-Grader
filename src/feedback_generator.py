@@ -4,6 +4,8 @@ from typing import Any, Dict, List, Optional
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from src.language_utils import normalize_language
+
 
 class FeedbackGenerator:
     """
@@ -19,15 +21,8 @@ class FeedbackGenerator:
             language: Language code used in generated feedback ('en' or 'nl')
         """
         self.analyzer = analyzer
-        self.language = self._normalize_language(language)
+        self.language = normalize_language(language)
         self._learning_story_rubric_details: Optional[Dict[str, Any]] = None
-
-    def _normalize_language(self, language: str) -> str:
-        """Normalize language inputs to supported codes."""
-        normalized = (language or "en").strip().lower()
-        aliases = {"english": "en", "dutch": "nl", "nederlands": "nl"}
-        normalized = aliases.get(normalized, normalized)
-        return normalized if normalized in {"en", "nl"} else "en"
 
     def generate_feedback(
         self,
@@ -50,7 +45,7 @@ class FeedbackGenerator:
         Returns:
             Dictionary containing different types of feedback
         """
-        active_language = self._normalize_language(language or self.language)
+        active_language = normalize_language(language or self.language)
         feedback: Dict[str, str] = {}
 
         rubric_used = grade_results.get("rubric_used", "")
@@ -106,6 +101,11 @@ class FeedbackGenerator:
         """Generate AI-powered comprehensive feedback."""
         try:
             language_name = "Dutch" if language == "nl" else "English"
+            goal_format_example = (
+                "Als student wil ik leren [vaardigheid/kennis] zodat ik [concreet doel/resultaat] kan bereiken."
+                if language == "nl"
+                else "As a student, I want to learn [skill/knowledge] so that I can achieve [concrete goal/outcome]."
+            )
             retrieval_context = analysis_results.get("retrieval_context", {}) or {}
             vector_block = retrieval_context.get("vector_block", "")
             retrieval_text = ""
@@ -158,7 +158,7 @@ class FeedbackGenerator:
 LEARNING STORY FUNDAMENTALS:
 A Learning Story is a structured approach that bridges User Stories and skill development. Students must:
 1. **Identify Context**: What problem/user story requires new learning? Define the role, stakeholders, and deliverables.
-2. **Formulate Learning Goals**: 'Als student wil ik leren [skill/knowledge] zodat ik [concrete goal/outcome] kan bereiken.' Include success criteria for each goal.
+2. **Formulate Learning Goals**: '{goal_format_example}' Include success criteria for each goal.
 3. **Design Learning Approach**: Concrete, step-by-step actions, planned experiments/research, relevant resources (links, books, videos, knowledge bases, mentorship), and realistic timeboxing.
 4. **Substantiate with Evidence**: Cite sources, include artifacts/evidence of learning, and reflect on what was learned and how it applies.
 

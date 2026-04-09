@@ -5,6 +5,8 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, cast
 
+from src.language_utils import normalize_language
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -37,7 +39,7 @@ class LearningStoryRetriever:
         self,
         data_path: Optional[str | Path] = None,
         top_k: int = 3,
-        min_score: float = 0.05,
+        min_score: float = 0.08,
     ) -> None:
         self.data_path = (
             Path(data_path)
@@ -55,8 +57,40 @@ class LearningStoryRetriever:
         self.examples: List[Dict[str, Any]] = []
         self.vectorizer = None
         self.matrix = None
+        self.language_indexes: Dict[str, Dict[str, Any]] = {}
         self.available = TfidfVectorizer is not None and cosine_similarity is not None
         self._load_index()
+
+    def _detect_language(self, text: str) -> str:
+        lowered = text.lower()
+        english_markers = [
+            " the ",
+            " and ",
+            " because ",
+            " this ",
+            " that ",
+            " with ",
+            " approach ",
+            " sources ",
+        ]
+        dutch_markers = [
+            " de ",
+            " het ",
+            " een ",
+            " omdat ",
+            " deze ",
+            " dit ",
+            " ik ",
+            " wil ",
+            " leren ",
+            " met ",
+            " aanpak ",
+            " bronnen ",
+        ]
+
+        en_hits = sum(marker in f" {lowered} " for marker in english_markers)
+        nl_hits = sum(marker in f" {lowered} " for marker in dutch_markers)
+        return "nl" if nl_hits > en_hits else "en"
 
     def _load_examples(self) -> List[Dict[str, Any]]:
         source_path = self._resolve_source_path()
@@ -106,7 +140,7 @@ class LearningStoryRetriever:
             return []
 
         examples: List[Dict[str, Any]] = []
-        for file_path in sorted(source_dir.iterdir()):
+        for file_path in sorted(source_dir.rglob("*")):
             if not file_path.is_file():
                 continue
 
@@ -133,6 +167,7 @@ class LearningStoryRetriever:
                     "title": file_path.stem,
                     "summary": _shorten(clean_text, 320),
                     "text": clean_text,
+                    "language": self._detect_language(clean_text),
                     "source_path": str(file_path),
                 }
             )
@@ -175,36 +210,136 @@ class LearningStoryRetriever:
             corpus.append(text_blob)
 
         vectorizer_cls = cast(Any, TfidfVectorizer)
-        self.vectorizer = vectorizer_cls(stop_words="english", max_features=4096)
+        self.vectorizer = vectorizer_cls(
+            stop_words=None,
+            ngram_range=(1, 2),
+            max_features=8192,
+            token_pattern=r"(?u)\b\w[\w\-\.]+\b",
+        )
         self.matrix = self.vectorizer.fit_transform(corpus)
 
-    def search(self, query: str, top_k: Optional[int] = None) -> List[Dict[str, Any]]:
-        if not query or self.matrix is None or self.vectorizer is None:
-            return []
+        for lang in ("en", "nl"):
+            lang_indices = [
+                idx
+                for idx, example in enumerate(self.examples)
+                if normalize_language(example.get("language", "en"), default="en")
+                == lang
+            ]
+            if not lang_indices:
+                continue
 
-        k = top_k or self.top_k
+            lang_corpus = [corpus[idx] for idx in lang_indices]
+            lang_vectorizer = vectorizer_cls(
+                stop_words=None,
+                ngram_range=(1, 2),
+                max_features=4096,
+                token_pattern=r"(?u)\b\w[\w\-\.]+\b",
+            )
+            self.language_indexes[lang] = {
+                "vectorizer": lang_vectorizer,
+                "matrix": lang_vectorizer.fit_transform(lang_corpus),
+                "indices": lang_indices,
+            }
+
+    def _search_with_index(
+        self,
+        query: str,
+        vectorizer: Any,
+        matrix: Any,
+        source_indices: List[int],
+        top_k: int,
+        min_score: float,
+    ) -> List[Dict[str, Any]]:
         try:
-            query_vec = self.vectorizer.transform([query])
+            query_vec = vectorizer.transform([query])
             similarity_fn = cast(Any, cosine_similarity)
-            sims = similarity_fn(query_vec, self.matrix).flatten()
+            sims = similarity_fn(query_vec, matrix).flatten()
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning("Vector search failed: %s", exc)
             return []
 
+        if sims.size == 0:
+            return []
+
         ranked_indices = sims.argsort()[::-1]
+        top_score = float(sims[ranked_indices[0]])
+        adaptive_min = max(min_score, min(0.25, top_score * 0.55))
+
         hits: List[Dict[str, Any]] = []
-        for idx in ranked_indices[:k]:
-            score = float(sims[idx])
-            if score < self.min_score:
+        candidate_window = max(top_k * 3, 8)
+        for local_idx in ranked_indices[:candidate_window]:
+            score = float(sims[local_idx])
+            if score < adaptive_min:
                 continue
-            example = dict(self.examples[idx])
+
+            global_idx = source_indices[local_idx]
+            example = dict(self.examples[global_idx])
             example["score"] = score
             example["snippet"] = _shorten(
                 example.get("summary") or example.get("text", "")
             )
             hits.append(example)
+            if len(hits) >= top_k:
+                break
+
+        if hits:
+            return hits
+
+        # Sparse corpora can produce low-but-meaningful similarities, so retry with the
+        # explicit baseline threshold when adaptive filtering removed all candidates.
+        for local_idx in ranked_indices[:candidate_window]:
+            score = float(sims[local_idx])
+            if score < min_score:
+                continue
+
+            global_idx = source_indices[local_idx]
+            example = dict(self.examples[global_idx])
+            example["score"] = score
+            example["snippet"] = _shorten(
+                example.get("summary") or example.get("text", "")
+            )
+            hits.append(example)
+            if len(hits) >= top_k:
+                break
 
         return hits
+
+    def search(
+        self,
+        query: str,
+        top_k: Optional[int] = None,
+        language: Optional[str] = None,
+        min_score: Optional[float] = None,
+    ) -> List[Dict[str, Any]]:
+        if not query or self.matrix is None or self.vectorizer is None:
+            return []
+
+        k = top_k or self.top_k
+        threshold = max(self.min_score, min_score if min_score is not None else self.min_score)
+        detected_language = normalize_language(language or self._detect_language(query), default="en")
+
+        lang_index = self.language_indexes.get(detected_language)
+        if lang_index:
+            hits = self._search_with_index(
+                query=query,
+                vectorizer=lang_index["vectorizer"],
+                matrix=lang_index["matrix"],
+                source_indices=lang_index["indices"],
+                top_k=k,
+                min_score=threshold,
+            )
+            if hits:
+                return hits
+
+        source_indices = list(range(len(self.examples)))
+        return self._search_with_index(
+            query=query,
+            vectorizer=self.vectorizer,
+            matrix=self.matrix,
+            source_indices=source_indices,
+            top_k=k,
+            min_score=threshold,
+        )
 
     def build_context_block(self, hits: List[Dict[str, Any]]) -> str:
         if not hits:

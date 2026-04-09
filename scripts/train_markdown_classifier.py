@@ -267,7 +267,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--output-model",
-        default="models/learning_story_good_bad.joblib",
+        default="models/story_quality_model.joblib",
         help="Path to save trained model artifact.",
     )
     parser.add_argument(

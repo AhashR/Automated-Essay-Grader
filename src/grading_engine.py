@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from src.language_utils import normalize_language
+
 
 @dataclass
 class GradingCriteria:
@@ -26,17 +28,11 @@ class GradingEngine:
     ):
         self.rubric_type = self._normalize_rubric_type(rubric_type)
         self.analyzer = analyzer
-        self.language = self._normalize_language(language)
+        self.language = normalize_language(language)
         self.quality_model = quality_model
         self.rubric, self.rubric_source, self.grade_scale = self._load_rubric(
             self.rubric_type
         )
-
-    def _normalize_language(self, language: str) -> str:
-        normalized = (language or "en").strip().lower()
-        aliases = {"english": "en", "dutch": "nl", "nederlands": "nl"}
-        normalized = aliases.get(normalized, normalized)
-        return normalized if normalized in {"en", "nl"} else "en"
 
     def _normalize_rubric_type(self, rubric_type: str) -> str:
         normalized = (rubric_type or "learning_story").strip().lower()
@@ -111,7 +107,7 @@ class GradingEngine:
         language: Optional[str] = None,
     ) -> Dict[str, Any]:
         _ = prompt
-        active_language = self._normalize_language(language or self.language)
+        active_language = normalize_language(language or self.language)
         signals = analysis_results.get("learning_story_signals", {}) or {}
 
         criteria_scores = {
@@ -127,7 +123,9 @@ class GradingEngine:
             ),
         }
 
-        base_overall_score = self._calculate_overall_score(criteria_scores)
+        base_overall_score = self._calculate_overall_score(
+            criteria_scores, signals, essay_text
+        )
         quality_assessment = self._get_quality_assessment(essay_text)
         score_adjustment = self._compute_score_adjustment(quality_assessment)
         overall_score = min(100.0, max(0.0, base_overall_score + score_adjustment))
@@ -175,30 +173,50 @@ class GradingEngine:
         if not quality_assessment.get("available"):
             return 0.0
 
-        label = str(quality_assessment.get("label") or "").lower()
+        good_probability = quality_assessment.get("good_probability")
+        bad_probability = quality_assessment.get("bad_probability")
         confidence = quality_assessment.get("confidence")
+
+        if not isinstance(good_probability, (int, float)):
+            if not isinstance(confidence, (int, float)):
+                return 0.0
+            good_probability = float(confidence)
+
+        if isinstance(bad_probability, (int, float)):
+            bad_probability = float(bad_probability)
+        else:
+            bad_probability = None
+
+        good_probability = float(good_probability)
+
+        if bad_probability is not None and bad_probability >= 0.60:
+            scaled = min(1.0, max(0.0, (bad_probability - 0.60) / 0.40))
+            return -14.0 * scaled
+
+        if good_probability >= 0.80:
+            scaled = min(1.0, max(0.0, (good_probability - 0.80) / 0.20))
+            return 8.0 * scaled
+
+        if good_probability < 0.65:
+            scaled = min(1.0, max(0.0, (0.65 - good_probability) / 0.65))
+            return -8.0 * scaled
 
         if not isinstance(confidence, (int, float)):
             return 0.0
 
-        if confidence < 0.60:
-            return 0.0
-
-        # Scale from [0.60, 1.00] to [0.0, 1.0] to reduce unstable low-confidence impact.
         scaled = min(1.0, max(0.0, (float(confidence) - 0.60) / 0.40))
-
-        if label == "good":
-            return 8.0 * scaled
-        if label == "bad":
-            return -12.0 * scaled
-        return 0.0
+        return 4.0 * scaled if quality_assessment.get("label") == "good" else -6.0 * scaled
 
     def _score_context(self, signals: Dict[str, Any], criterion: GradingCriteria) -> float:
-        base = criterion.max_score * 0.25
+        base = criterion.max_score * 0.10
         context_mentions = int(signals.get("context_mentions", 0))
         stakeholders = int(signals.get("stakeholder_mentions", 0))
         deliverables = int(signals.get("deliverable_mentions", 0))
         planning = int(signals.get("planning_mentions", 0))
+        sections_detected = signals.get("sections_detected", {}) or {}
+
+        if context_mentions == 0 and not sections_detected.get("context"):
+            return min(base, criterion.max_score * 0.20)
 
         if context_mentions >= 4:
             base += criterion.max_score * 0.4
@@ -213,15 +231,24 @@ class GradingEngine:
             base += criterion.max_score * 0.15
         if planning >= 1:
             base += criterion.max_score * 0.1
+        if sections_detected.get("context"):
+            base += criterion.max_score * 0.08
+
+        if context_mentions < 2 and not (stakeholders or deliverables or planning):
+            base = min(base, criterion.max_score * 0.40)
 
         return min(base, criterion.max_score)
 
     def _score_learning_goals(
         self, signals: Dict[str, Any], criterion: GradingCriteria
     ) -> float:
-        base = criterion.max_score * 0.25
+        base = criterion.max_score * 0.10
         goals = int(signals.get("goal_statements", 0))
         success = int(signals.get("success_criteria_mentions", 0))
+        sections_detected = signals.get("sections_detected", {}) or {}
+
+        if goals == 0 and success == 0 and not sections_detected.get("learning_goals"):
+            return min(base, criterion.max_score * 0.18)
 
         if goals >= 3:
             base += criterion.max_score * 0.4
@@ -232,16 +259,27 @@ class GradingEngine:
             base += criterion.max_score * 0.25
         elif success >= 1:
             base += criterion.max_score * 0.15
+        if sections_detected.get("learning_goals"):
+            base += criterion.max_score * 0.08
+
+        if goals < 2 and success == 0:
+            base = min(base, criterion.max_score * 0.45)
 
         return min(base, criterion.max_score)
 
     def _score_learning_approach(
         self, signals: Dict[str, Any], criterion: GradingCriteria
     ) -> float:
-        base = criterion.max_score * 0.25
+        base = criterion.max_score * 0.10
         actions = int(signals.get("actions_count", 0))
         resources = int(signals.get("resource_mentions", 0))
         planning = int(signals.get("planning_mentions", 0))
+        sections_detected = signals.get("sections_detected", {}) or {}
+
+        if actions == 0 and resources == 0 and planning == 0 and not sections_detected.get(
+            "learning_approach"
+        ):
+            return min(base, criterion.max_score * 0.16)
 
         if actions >= 5:
             base += criterion.max_score * 0.35
@@ -255,17 +293,30 @@ class GradingEngine:
 
         if planning >= 1:
             base += criterion.max_score * 0.15
+        if sections_detected.get("learning_approach"):
+            base += criterion.max_score * 0.08
+
+        if actions < 2 and resources < 1:
+            base = min(base, criterion.max_score * 0.35)
+        elif actions < 3 or resources < 2:
+            base = min(base, criterion.max_score * 0.60)
 
         return min(base, criterion.max_score)
 
     def _score_substantiation(
         self, signals: Dict[str, Any], criterion: GradingCriteria
     ) -> float:
-        base = criterion.max_score * 0.25
+        base = criterion.max_score * 0.10
         evidence = int(signals.get("evidence_mentions", 0))
         links = int(signals.get("link_mentions", 0))
         resources = int(signals.get("resource_mentions", 0))
         reflection = int(signals.get("reflection_mentions", 0))
+        sections_detected = signals.get("sections_detected", {}) or {}
+
+        if evidence == 0 and links == 0 and resources == 0 and reflection == 0 and not sections_detected.get(
+            "substantiation"
+        ):
+            return min(base, criterion.max_score * 0.16)
 
         if evidence >= 3:
             base += criterion.max_score * 0.35
@@ -279,10 +330,22 @@ class GradingEngine:
 
         if reflection >= 1:
             base += criterion.max_score * 0.15
+        if sections_detected.get("substantiation") or sections_detected.get("reflection"):
+            base += criterion.max_score * 0.08
+
+        if evidence < 1 and links == 0 and resources < 1:
+            base = min(base, criterion.max_score * 0.35)
+        elif evidence < 2 or resources < 2:
+            base = min(base, criterion.max_score * 0.60)
 
         return min(base, criterion.max_score)
 
-    def _calculate_overall_score(self, criteria_scores: Dict[str, float]) -> float:
+    def _calculate_overall_score(
+        self,
+        criteria_scores: Dict[str, float],
+        signals: Dict[str, Any],
+        essay_text: str,
+    ) -> float:
         total_score = 0.0
         total_weight = 0.0
 
@@ -297,7 +360,19 @@ class GradingEngine:
             return 0.0
 
         weighted_average = total_score / total_weight
-        return (weighted_average / 25.0) * 100.0
+        overall_score = (weighted_average / 25.0) * 100.0
+
+        coverage_count = int(signals.get("section_coverage_count", 0))
+        missing_sections = max(0, 4 - coverage_count)
+        overall_score -= missing_sections * 4.0
+
+        word_count = len([word for word in essay_text.split() if word.strip()])
+        if word_count < 100:
+            overall_score -= 4.0
+        elif word_count < 150:
+            overall_score -= 2.0
+
+        return max(0.0, overall_score)
 
     def _get_letter_grade(self, overall_score: float) -> str:
         if self.grade_scale:
