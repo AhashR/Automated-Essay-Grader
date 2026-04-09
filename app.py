@@ -1,30 +1,21 @@
 import os
-import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import markdown
 from dotenv import load_dotenv
-from flask import (
-    Flask,
-    flash,
-    jsonify,
-    render_template,
-    request,
-    session,
-)
+from flask import Flask, flash, jsonify, render_template, request, session
 from markupsafe import Markup, escape
 
 # Add src directory to path
 sys.path.append(str(Path(__file__).parent / "src"))
 
-from essay_analyzer import EssayAnalyzer
-from feedback_generator import FeedbackGenerator
-from grading_engine import GradingEngine
-from utils import load_document, validate_file
-from retrieval import LearningStoryRetriever
-
+from essay_analyzer import EssayAnalyzer  # noqa: E402
+from feedback_generator import FeedbackGenerator  # noqa: E402
+from grading_engine import GradingEngine  # noqa: E402
+from retrieval import LearningStoryRetriever  # noqa: E402
+from utils import load_document, validate_file  # noqa: E402
 
 load_dotenv()
 
@@ -79,7 +70,6 @@ def _default_form_state() -> Dict[str, Any]:
         "model_name": "gemini-2.5-flash",
         "feedback_agent_language": "en",
         "essay_text": "",
-        "essay_prompt": "",
     }
 
 
@@ -136,13 +126,14 @@ def index():
         form_state["temperature"] = float(request.form.get("temperature", 0.3))
         form_state["max_tokens"] = int(request.form.get("max_tokens", 2000))
         form_state["feedback_agent_language"] = _normalize_language(
-            request.form.get("feedback_agent_language", form_state["feedback_agent_language"])
+            request.form.get(
+                "feedback_agent_language", form_state["feedback_agent_language"]
+            )
         )
         active_language = form_state["feedback_agent_language"]
         template_name = TEMPLATES.get(active_language, TEMPLATES["en"])
         session["ui_language"] = active_language
         form_state["essay_text"] = request.form.get("essay_text", "")
-        form_state["essay_prompt"] = request.form.get("essay_prompt", "")
 
         model_choices = _model_options_for(form_state["model_provider"])
         if form_state["model_name"] not in model_choices:
@@ -154,7 +145,9 @@ def index():
 
         try:
             if uploaded_file and uploaded_file.filename:
-                is_valid, error_message = validate_file(uploaded_file, return_error=True)
+                is_valid, error_message = validate_file(
+                    uploaded_file, return_error=True
+                )
                 if not is_valid:
                     flash(error_message, "error")
                     return render_template(
@@ -205,13 +198,11 @@ def index():
 
             analysis_results = analyzer.analyze_essay(
                 content,
-                prompt=form_state["essay_prompt"],
             )
 
             grade_results = grading_engine.grade_essay(
                 content,
                 analysis_results,
-                prompt=form_state["essay_prompt"],
                 language=form_state["feedback_agent_language"],
             )
 
@@ -219,7 +210,6 @@ def index():
                 content,
                 analysis_results,
                 grade_results,
-                prompt=form_state["essay_prompt"],
                 language=form_state["feedback_agent_language"],
             )
 
@@ -233,7 +223,9 @@ def index():
             }
 
             breakdown_values = list(grade_results.get("grading_breakdown", {}).values())
-            grammar_issues = analysis_results.get("grammar", {}).get("grammar_issues", [])
+            grammar_issues = analysis_results.get("grammar", {}).get(
+                "grammar_issues", []
+            )
 
             results = {
                 "quick_stats": quick_stats,

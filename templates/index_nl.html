@@ -14,8 +14,20 @@
         }
 
         .brand-serif {
+            font-family: "Source Serif 4", Georgia, serif;
+        }
+
+        .feedback-box ul,
+        .feedback-box ol {
+            margin-left: 1.2rem;
+            list-style: revert;
+        }
+
+        .feedback-box p,
+        .feedback-box h1,
+        .feedback-box h2,
         .feedback-box h3,
-                                    <h4 class="text-lg font-semibold text-slate-900">Feedback</h4>
+        .feedback-box h4,
         .feedback-box h5,
         .feedback-box h6,
         .feedback-box blockquote,
@@ -104,8 +116,8 @@
                 <h1 class="brand-serif text-2xl font-semibold leading-none">HvA Feedback AI</h1>
             </div>
             <div class="px-7 py-6">
-                <button type="button" class="w-full rounded-md border border-white/30 px-4 py-2.5 text-left text-sm font-semibold transition hover:bg-white/10">+ Nieuwe chat</button>
-                <p class="mt-5 text-sm font-semibold text-white/90">Alle chats</p>
+                <button type="button" class="w-full rounded-md border border-white/30 px-4 py-2.5 text-left text-sm font-semibold transition hover:bg-white/10">+ Nieuwe sessie</button>
+                <p class="mt-5 text-sm font-semibold text-white/90">Recente analyses</p>
             </div>
             <div class="mt-auto px-7 py-6 text-xs text-white/65">HvA Feedback AI</div>
         </aside>
@@ -122,11 +134,10 @@
                     </div>
 
                     <section class="mx-auto max-w-2xl text-left">
-                        <h2 class="brand-serif text-4xl font-semibold text-[#25167f] sm:text-5xl">HvA Feedback AI</h2>
+                        <h2 class="brand-serif text-4xl font-semibold text-[#25167f] sm:text-5xl">HvA Learning Story Feedback</h2>
                         <p class="mt-5 text-base leading-8 text-slate-700">
-                            Welkom bij HvA Feedback AI, je assistent voor het analyseren en verbeteren van learning stories.
-                            Upload je concept of plak je tekst en ontvang gestructureerde feedback,
-                            rubric-gebaseerde beoordeling en concrete verbetersuggesties.
+                            Upload of plak je learning story en ontvang gerichte, rubric-gebaseerde feedback voor HBO-ICT aan de HvA.
+                            De feedback focust op context, leerdoelen, aanpak en onderbouwing.
                         </p>
                     </section>
 
@@ -161,12 +172,12 @@
                                 </article>
                             </div>
 
-                            <h4 class="mt-8 text-lg font-semibold text-slate-900">Uitgebreide beoordeling</h4>
+                            <h4 class="mt-8 text-lg font-semibold text-slate-900">Beoordeling per criterium</h4>
                             <div class="mt-3 overflow-hidden rounded-xl border border-slate-200">
                                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                                     <thead class="bg-slate-50">
                                         <tr>
-                                            <th class="px-4 py-3 text-left font-semibold text-slate-700">Criteria</th>
+                                            <th class="px-4 py-3 text-left font-semibold text-slate-700">Criterium</th>
                                             <th class="px-4 py-3 text-left font-semibold text-slate-700">Score</th>
                                             <th class="px-4 py-3 text-left font-semibold text-slate-700">Max. score</th>
                                             <th class="px-4 py-3 text-left font-semibold text-slate-700">Weging</th>
@@ -187,11 +198,10 @@
 
                             <div class="mt-8 space-y-6">
                                 <div>
-                                    <h4 class="text-lg font-semibold text-slate-900">Ruwe modelfeedback</h4>
+                                    <h4 class="text-lg font-semibold text-slate-900">AI-feedback</h4>
                                     <div class="feedback-box mt-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-700">{{ results.ai_feedback|default('Geen modelfeedback gegenereerd.')|render_feedback }}</div>
                                 </div>
                             </div>
-
                         </section>
                     {% endif %}
                 </div>
